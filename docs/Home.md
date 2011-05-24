@@ -1,4 +1,4 @@
-Welcome to the Git-Mediawiki project wiki.
+Welcome to the wiki of the Git-Mediawiki's project .
 
 ## What is Git-Mediawiki ?
 
@@ -10,7 +10,7 @@ Github and ikiwiki propose solutions for git-based wikis. Our project wants to b
 
 ## Who are we ?
 
-We are four students from [ENSIMAG](http://www.ensimag.fr), an IT engineering school based in France. This is part of our end-year project for our second year of studies in this school. This project is mentored by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en) and [Sylvain Boulme](http://www-verimag.imag.fr/~boulme/), and developed with the help of the [git community](http://git.kernel.org/).
+We are four students : [Jérémie Nikaes](mailto:nikaesj@ensimag.fr), [Claire Fousse](mailto:foussec@ensimag.fr), [Arnaud Lacurie](mailto:lacuriea@ensimag.fr) and [David Amouyal](mailto:amouyald@ensimag.fr) from [ENSIMAG](http://www.ensimag.fr), an IT engineering school based in France. This is part of our end-year project for our second year of studies in this school. This project is mentored by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en) and [Sylvain Boulme](http://www-verimag.imag.fr/~boulme/), and developed with the help of the [git community](http://git.kernel.org/).
 
 ## Links
 
