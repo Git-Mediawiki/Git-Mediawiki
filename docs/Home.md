@@ -2,7 +2,7 @@ Welcome to the Git-Mediawiki project wiki.
 
 ## What is Git-Mediawiki ?
 
-Git-Mediawiki is a project which aims to creating a gate between git and mediawiki, allowing git users to push objects to and pull objects from mediawiki just as one would do with a classic git repository.
+Git-Mediawiki is a project which aims to create a gate between git and mediawiki, allowing git users to push objects to and pull objects from mediawiki just as one would do with a classic git repository.
 
 ## But, don't other solutions already exist ?
 
