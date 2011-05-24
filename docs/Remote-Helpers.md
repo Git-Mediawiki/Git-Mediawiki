@@ -8,7 +8,7 @@ Here, the special interest is with the 'fetch' and 'pull' commands, see man :
 Optionally may output a lock <file> line indicating a file under GIT_DIR/objects/pack which is keeping a pack until refs can be suitably updated.
 Supported if the helper has the "fetch" capability.
 
->push :
+>push 
 
 > > Pushes the given local <src> commit or branch to the remote branch described by <dst>. A batch sequence of one or more push commands is terminated with a blank line.
 Zero or more protocol options may be entered after the last push command, before the batch’s terminating blank line.
