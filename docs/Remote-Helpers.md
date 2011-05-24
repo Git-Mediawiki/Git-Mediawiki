@@ -1,15 +1,23 @@
 This project is using remote helpers to feature complete transparency to git users. Instead of creating brand new git-mw commands, using remote helpers also assure that any change to the original git commands would be transferable to our project.
 
-Here, the special interest is with the 'fetch' and 'pull' commands (see man :
+Here, the special interest is with the 'fetch' and 'pull' commands, see man : 
 
 >   fetch <sha1> <name>
-> >     Fetches the given object, writing the necessary objects to the database. Fetch commands are sent in a batch, one per line, terminated with a blank line. Outputs a single blank line when all fetch commands in the same batch are complete. Only objects which were reported in the ref list with a sha1 may be fetched this way.
-    Optionally may output a lock <file> line indicating a file under GIT_DIR/objects/pack which is keeping a pack until refs can be suitably updated.
 
-    Supported if the helper has the "fetch" capability.
+> > Fetches the given object, writing the necessary objects to the database. Fetch commands are sent in a batch, one per line, terminated with a blank line. Outputs a single blank line when all fetch commands in the same batch are complete. Only objects which were reported in the ref list with a sha1 may be fetched this way.
+Optionally may output a lock <file> line indicating a file under GIT_DIR/objects/pack which is keeping a pack until refs can be suitably updated.
+Supported if the helper has the "fetch" capability.
+
+>push +<src>:<dst>
+
+> > Pushes the given local <src> commit or branch to the remote branch described by <dst>. A batch sequence of one or more push commands is terminated with a blank line.
+Zero or more protocol options may be entered after the last push command, before the batch’s terminating blank line.
+When the push is complete, outputs one or more ok <dst> or error <dst> <why>? lines to indicate success or failure of each pushed ref. The status report output is terminated by a blank line. The option field <why> may be quoted in a C style string if it contains an LF.
+Supported if the helper has the "push" capability.
 
 
-as they are the ones that differ the most from original 'fetch' and 'push'. 
+
+as they are then the ones that differ the most from original 'fetch' and 'push'. 
 
 However functions such as 'list' :
 
