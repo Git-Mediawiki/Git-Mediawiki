@@ -1,10 +1,11 @@
 The format of data exchanged between mediawiki is the fast-import / fast-export format of git.
 
-Both directions of the gate also make use of the [mediawiki API](http://www.mediawiki.org/wiki/API:Main_page). The scripts are written in Perl.
+Both directions - import and export - use the [mediawiki API](http://www.mediawiki.org/wiki/API:Main_page). 
+Scripts are written in Perl mainly because mediawiki's API in perl was a fit to our needs. But also because there is no need for efficiency here, indeed we are limited by the latency due to the mediawiki anyway.
 
 ## Mediawiki -> Git
 
-The goal here is to fetch data from mediawiki using the API and format them in fast-import. We based our code on a script snippet created by Jeff King [[Link to discussion](http://article.gmane.org/gmane.comp.version-control.git/167560)]
+The goal here is to fetch data from the mediawiki using the API and then, format them in fast-import. Our code was based on a script snippet created by Jeff King [[Link to discussion](http://article.gmane.org/gmane.comp.version-control.git/167560)]
 
 ## Git -> Mediawiki
 
