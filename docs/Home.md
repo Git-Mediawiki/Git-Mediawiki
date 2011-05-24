@@ -2,7 +2,7 @@ Welcome to the Git-Mediawiki project wiki.
 
 ## What is Git-Mediawiki ?
 
-Git-Mediawiki is a project which aims to create a gate between git and mediawiki, allowing git users to push objects to and pull objects from mediawiki just as one would do with a classic git repository.
+Git-Mediawiki is a project which aim is to create a gate between git and mediawiki, allowing git users to push and pull objects from mediawiki just as one would do with a classic git repository.
 
 ## Are there no other solutions already ?
 
@@ -10,7 +10,7 @@ Github and ikiwiki propose solutions for git-based wikis. Our project wants to b
 
 ## Who are we ?
 
-We are four students from [ENSIMAG](http://www.ensimag.fr), an IT engineering school based in France. This project is part of our end-year project for our second year of studies in this school. This project is mentored by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en) and [Sylvain Boulme](http://www-verimag.imag.fr/~boulme/), and developed with the help of the [git community](http://git.kernel.org/).
+We are four students from [ENSIMAG](http://www.ensimag.fr), an IT engineering school based in France. This is part of our end-year project for our second year of studies in this school. This project is mentored by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en) and [Sylvain Boulme](http://www-verimag.imag.fr/~boulme/), and developed with the help of the [git community](http://git.kernel.org/).
 
 ## Links
 
