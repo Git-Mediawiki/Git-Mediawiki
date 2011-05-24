@@ -10,4 +10,4 @@ Github and ikiwiki propose solutions for git-based wikis. Our project wants to b
 
 ## Who are we ?
 
-We are four students from ENSIMAG [http://www.ensimag.fr], an IT engineering school based in France. This project is part of our end-year project for our second year of studies in this school. This project is mentored by Matthieu Moy [http://www-verimag.imag.fr/~moy/?lang=en] and Sylvain Boulme [http://www-verimag.imag.fr/~boulme/], and developped with the help of the git community [http://git.kernel.org/].
+We are four students from ENSIMAG [http://www.ensimag.fr], an IT engineering school based in France. This project is part of our end-year project for our second year of studies in this school. This project is mentored by Matthieu Moy [http://www-verimag.imag.fr/~moy/?lang=en] and Sylvain Boulme [http://www-verimag.imag.fr/~boulme/], and developed with the help of the git community [http://git.kernel.org/].
