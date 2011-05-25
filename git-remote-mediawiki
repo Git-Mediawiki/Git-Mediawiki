@@ -33,7 +33,7 @@ while ($loop) {
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
-				mw_import();
+				mw_import($url);
 			} 
 		}
 		case "option" {

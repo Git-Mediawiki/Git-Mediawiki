@@ -93,7 +93,6 @@ foreach my $rev (sort { $a->{timestamp} cmp $b->{timestamp} } @revisions) {
 	print "\n\n";
 }
 
-$n--;
 print "reset refs/heads/master\n";
 print "from :$n \n\n";
 
