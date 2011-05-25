@@ -1,0 +1,54 @@
+#! /usr/bin/perl
+
+
+use strict;
+use Switch;
+require "git-mediawiki.perl";
+
+my $url = $ARGV[1];
+
+
+print STDERR "$url\n";
+
+my $loop = 1;
+my $entry;
+my @cmd;
+while ($loop) {
+	$| = 1; #flush
+	$entry = <STDIN>;
+	print STDERR $entry;
+	chomp($entry);
+	@cmd = undef;
+	@cmd = split(/ /,$entry);
+	switch ($cmd[0]) {
+		case "capabilities" {
+			if ($cmd[1] eq "") {
+				mw_capabilities();
+			}
+		}
+		case "list" {
+			if ($cmd[1] eq "") {
+				mw_list();
+			} 
+		}
+		case "option" {
+			mw_option($cmd[1],$cmd[2]);
+		}
+		case "fetch" {
+			mw_fetch($url);
+		}
+		case "push" {
+			#check the pattern +<src>:<dist>
+			my @pushargs = split(/:/,$cmd[1]);
+			if ($pushargs[1] ne "" && $pushargs[2] eq "" 
+			&& (substr($pushargs[0],0,1) eq "+")) {	
+				print "kikoo";
+				mw_push(substr($pushargs[0],1),$pushargs[1]);
+			}
+		}
+		else {
+			$loop = 0;
+			close(FILE);
+		}
+	}
+}
