@@ -1,31 +1,50 @@
 This project is using remote helpers to feature complete transparency to git users. Instead of creating brand new git-mw commands, using remote helpers also assure that any change to the original git commands would be transferable to our project.
 
-Here, the special interest is with the 'fetch' and 'pull' commands, see man : 
+A few details are required for the different functionalities of the remote-helper
 
->   fetch <sha1> <name>
+1. Capabilities
 
-> > Fetches the given object, writing the necessary objects to the database. Fetch commands are sent in a batch, one per line, terminated with a blank line. Outputs a single blank line when all fetch commands in the same batch are complete. Only objects which were reported in the ref list with a sha1 may be fetched this way.
-Optionally may output a lock <file> line indicating a file under GIT_DIR/objects/pack which is keeping a pack until refs can be suitably updated.
-Supported if the helper has the "fetch" capability.
+Prints the list of capabilities of our remote helper. 
 
->push 
+2. List
 
-> > Pushes the given local <src> commit or branch to the remote branch described by <dst>. A batch sequence of one or more push commands is terminated with a blank line.
-Zero or more protocol options may be entered after the last push command, before the batch’s terminating blank line.
-When the push is complete, outputs one or more ok <dst> or error <dst> <why>? lines to indicate success or failure of each pushed ref. The status report output is terminated by a blank line. The option field <why> may be quoted in a C style string if it contains an LF.
-Supported if the helper has the "push" capability.
+Prints a list of refs for the repository. In our case, mediawiki has no repository refs. The list command prints
 
+`? refs/heads/master
+@refs/heads/master HEAD`
 
+3. Option
 
-as they are then the ones that differ the most from original 'fetch' and 'push'. 
+Allows different options such as 'Verbosity' and 'Progress' to be set up.
+Prints 'unsupported' if we don't support it, sets the variable and prints 'ok' if we do.
 
-Moreover functions such as 'list' :
+4. Fetch
 
-> list
+Fetch seems to make no sense in our case. We simply can't fetch objects from mediawiki since it's not a repository. Fetch only prints out a blank line for now
 
-> > Lists the refs, one per line, in the format "<value> <name> [<attr> …]". The value may be a hex sha1 hash, "@<dest>" for a symref, or "?" to indicate that the helper could not get the value of the ref. A space-separated list of attributes follows the name; unrecognized attributes are ignored. The list ends with a blank line.
-    If push is supported this may be called as list for-push to obtain the current refs prior to sending one or more push commands to the helper.
- 
-is also tricky because refs has to be defined for the mediawiki ... [ À COMPLÉTER]
+5. Import
+
+Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. It fetches every revision on the wiki and then prints the fast-import stream with this format for each revision :
+
+`commit refs/heads/master
+mark :<int>
+commiter <user> <address> <timestamp> +0000
+data <sizeofcomment>
+<comment>
+M 644 inline <title>.wiki
+data <sizeoffile>
+<content>`
+
+It ends with a 
+
+`reset refs/heads/master
+from :<lastmark>`
+
+## Further developing
+
+* We need to decide if we need to fetch all the revisions with their content, order them by datetime and then print the fast-export stream or fetch only the revision ids and fetch the content file by file. The first alternative is easier on the server-side but may be hard on memory if the wiki that we fetch is huge (such as wikipedia)
+* We need to figure out how to divide the import function because for now, it always imports the entire wiki and then diffs to see what files have changed, which is problematic for git pulls. 
+
+## Documentation 
 
 [Man page of git remote-helpers](http://www.kernel.org/pub/software/scm/git/docs/git-remote-helpers.html)
