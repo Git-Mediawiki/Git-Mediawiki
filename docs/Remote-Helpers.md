@@ -2,43 +2,53 @@ This project is using remote helpers to feature complete transparency to git use
 
 A few details are required for the different functionalities of the remote-helper
 
-1. Capabilities
+##Function details
 
+###Capabilities
 Prints the list of capabilities of our remote helper. 
 
-2. List
+###List
 
 Prints a list of refs for the repository. In our case, mediawiki has no repository refs. The list command prints
 
-`? refs/heads/master
-@refs/heads/master HEAD`
+`? refs/heads/master`
 
-3. Option
+`@refs/heads/master HEAD`
+
+###Option
 
 Allows different options such as 'Verbosity' and 'Progress' to be set up.
 Prints 'unsupported' if we don't support it, sets the variable and prints 'ok' if we do.
 
-4. Fetch
+###Fetch
 
 Fetch seems to make no sense in our case. We simply can't fetch objects from mediawiki since it's not a repository. Fetch only prints out a blank line for now
 
-5. Import
+###Import
 
 Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. It fetches every revision on the wiki and then prints the fast-import stream with this format for each revision :
 
-`commit refs/heads/master
-mark :<int>
-commiter <user> <address> <timestamp> +0000
-data <sizeofcomment>
-<comment>
-M 644 inline <title>.wiki
-data <sizeoffile>
-<content>`
+`commit refs/heads/master`
+
+`mark :<int>`
+
+`commiter <user> <address> <timestamp> +0000`
+
+`data <sizeofcomment>`
+
+`<comment>`
+
+`M 644 inline <title>.wiki`
+
+`data <sizeoffile>`
+
+`<content>`
 
 It ends with a 
 
-`reset refs/heads/master
-from :<lastmark>`
+`reset refs/heads/master`
+
+`from :<lastmark>`
 
 ## Further developing
 
