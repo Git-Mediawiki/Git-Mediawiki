@@ -31,6 +31,11 @@ while ($loop) {
 				mw_list();
 			} 
 		}
+		case "import" {
+			if ($cmd[1] ne "" && $cmd[2] eq "") {
+				mw_import();
+			} 
+		}
 		case "option" {
 			mw_option($cmd[1],$cmd[2]);
 		}

@@ -35,6 +35,9 @@ sub mw_fetch {
 
 }
 
+sub mw_import {
+	print STDERR "not yet implemented \n";
+}
 sub mw_push {
 	print STDERR "not yet implemented \n";
 }
