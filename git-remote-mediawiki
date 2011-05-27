@@ -11,11 +11,12 @@ my $url = $ARGV[1];
 
 print STDERR "$url\n";
 
+# commands parser
 my $loop = 1;
 my $entry;
 my @cmd;
 while ($loop) {
-	$| = 1; #flush
+	$| = 1; #flush stdout
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
@@ -28,8 +29,8 @@ while ($loop) {
 			}
 		}
 		case "list" {
-			if ($cmd[1] eq "") {
-				mw_list();
+			if ($cmd[2] eq "") {
+				mw_list($cmd[1]);
 			} 
 		}
 		case "import" {
@@ -70,7 +71,9 @@ sub mw_capabilities {
 
 sub mw_list {
 	print STDOUT "? refs/heads/master\n";
+#	if ($_[0] eq "") { # call to list and not list for push
 	print STDOUT '@'."refs/heads/master HEAD\n";
+#	}
 	print STDOUT "\n";
 
 }
@@ -171,6 +174,7 @@ sub mw_import {
 		print "M 644 inline $title.wiki\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
+
 	}
 
 	print "reset refs/heads/master\n";
