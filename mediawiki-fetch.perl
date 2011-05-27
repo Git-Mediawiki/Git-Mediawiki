@@ -5,6 +5,7 @@ use MediaWiki::API;
 use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
+use Data::Dumper;
 
 my $url = shift;
 
@@ -17,7 +18,7 @@ my $pages = $mediawiki->list({
 		aplimit => 500,
 	});
 
-my %revisions;
+my @revisions;
 
 print STDERR "Fetching revisions...\n";
 my $n = 1;
@@ -28,63 +29,68 @@ foreach my $page (@$pages) {
 	print STDERR "$n/", scalar(@$pages), ": $page->{title}\n";
 	$n++;
 
-	next if exists $revisions{$id};
-
 	my $query = {
 		action => 'query',
 		prop => 'revisions',
-		rvprop => 'content|timestamp|comment|user|ids',
-		rvlimit => 10,
+		rvprop => 'ids',
+		rvlimit => 500,
 		pageids => $page->{pageid},
 	};
 
-	my $page_revisions;
+	my $revnum = 1;
+	# Get 500 revisions at a time
 	while (1) {
 		my $result = $mediawiki->api($query);
-
-		# Save the result, appending if necessary.
-		if (defined $page_revisions) {
-			push @{$page_revisions->{revisions}}, @{$result->{query}->{pages}->{$id}->{revisions}};
-		} else {
-			$page_revisions = $result->{query}->{pages}->{$id};
+	
+		# Parse each of those 500 revisions
+		foreach my $revision (@{$result->{query}->{pages}->{$id}->{revisions}}) {
+			my $page_rev_ids;
+			$page_rev_ids->{pageid} = $page->{pageid};
+			$page_rev_ids->{revid} = $revision->{revid};
+			push (@revisions, $page_rev_ids);
+			$revnum++;
 		}
 
-		# And continue or quit, depending on the output.
 		last unless $result->{'query-continue'};
 		$query->{rvstartid} = $result->{'query-continue'}->{revisions}->{rvstartid};
+		print "\n";
 	}
 
-	print STDERR "  Fetched ", scalar(@{$page_revisions->{revisions}}), " revisions.\n";
-	$revisions{$id} = freeze($page_revisions);
+	print STDERR "  Fetched ", $revnum, " revisions.\n";
 
 }
 
-# Make a flat list of all page revisions, so we can
-# interleave them in date order.
-my @revisions = map {
-	my $page = thaw($revisions{$_});
-	my @revisions = @{$page->{revisions}};
-	delete $page->{revisions};
-	$_->{page} = $page foreach @revisions;
-	@revisions } keys(%revisions);
 
 # Creation of the fast-import stream
 print STDERR "Writing export data...\n";
 binmode STDOUT, ':binary';
 $n = 0;
-foreach my $rev (sort { $a->{timestamp} cmp $b->{timestamp} } @revisions) {
+
+foreach my $pagerevids (sort {$a->{revid} >= $b->{revid}} @revisions) {
+
+	my $query = {
+		action => 'query',
+		prop => 'revisions',
+		rvprop => 'content|timestamp|comment|user|ids',
+		revids => $pagerevids->{revid},
+	};
+
+	my $result = $mediawiki->api($query);
+
+	my $rev = pop(@{$result->{query}->{pages}->{$pagerevids->{pageid}}->{revisions}});
+	
 	$n++;
 	my $user = $rev->{user} || 'Anonymous';
 	my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
-	#TODO: Write empty message ?
-	my $comment = defined $rev->{comment} ? $rev->{comment} : '';
-	my $title = $rev->{page}->{title};
+	
+	my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
+	my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 	my $content = $rev->{'*'};
 	$title =~ y/ /_/;
 
-	print STDERR "$n/", scalar(@revisions), ": $rev->{page}->{title}\n";
+	print STDERR "$n/", scalar(@revisions), ": $title\n";
 
-	print "commit refs/remotes/origin/master\n";
+	print "commit refs/heads/master\n";
 	print "mark :$n\n";
 	print "committer $user <none\@example.com> ", $dt->epoch, " +0000\n";
 	print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
@@ -94,8 +100,5 @@ foreach my $rev (sort { $a->{timestamp} cmp $b->{timestamp} } @revisions) {
 }
 
 print "reset refs/heads/master\n";
-print "from :$n \n\n";
-
-print "reset refs/remotes/origin/master\n";
 print "from :$n";
 
