@@ -11,11 +11,12 @@ my $url = $ARGV[1];
 
 print STDERR "$url\n";
 
+# commands parser
 my $loop = 1;
 my $entry;
 my @cmd;
 while ($loop) {
-	$| = 1; #flush
+	$| = 1; #flush stdout
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
@@ -28,8 +29,8 @@ while ($loop) {
 			}
 		}
 		case "list" {
-			if ($cmd[1] eq "") {
-				mw_list();
+			if ($cmd[2] eq "") {
+				mw_list($cmd[1]);
 			} 
 		}
 		case "import" {
@@ -70,7 +71,9 @@ sub mw_capabilities {
 
 sub mw_list {
 	print STDOUT "? refs/heads/master\n";
+#	if ($_[0] eq "") { # call to list and not list for push
 	print STDOUT '@'."refs/heads/master HEAD\n";
+#	}
 	print STDOUT "\n";
 
 }
@@ -110,6 +113,8 @@ sub mw_import {
 	}
 
 	my $url = $_[0];
+	my @wiki_name = split(/:\/\//,$url); 
+	my $wiki_name = $wiki_name[1];
 
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
@@ -200,7 +205,7 @@ sub mw_import {
 		}
 		print "commit refs/heads/master\n";
 		print "mark :$n\n";
-		print "committer $user <none\@example.com> ", $dt->epoch, " +0000\n";
+		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
 		if ($fetch_from != 0) {
 			print "from refs/heads/master^0\n";
