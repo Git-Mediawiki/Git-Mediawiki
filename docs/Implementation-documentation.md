@@ -2,3 +2,7 @@ The use of remote helpers is the most important choice of our implementation as 
 
    * [[Remote helpers]]
    * [[Fast Import & Fast Export]]
+
+We need to store metadata, using git notes
+
+   * [[Git notes]]
