@@ -19,4 +19,5 @@ Do not hesitate to contact us if you have any questions about the project.
 * [[User manual]]
 * [[Implementation documentation]]
    * [[Remote helpers]]
-   * [[Fast Import & Fast Export]]
+   * [[Fast import & Fast export]]
+   * [[Storing metadata : Git notes]]
