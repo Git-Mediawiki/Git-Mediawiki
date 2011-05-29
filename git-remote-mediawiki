@@ -89,6 +89,8 @@ sub mw_fetch {
 
 sub mw_import {
 	my $url = $_[0];
+	my @wiki_name = split(/:\/\//,$url); 
+	my $wiki_name = $wiki_name[1];
 
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
@@ -173,7 +175,7 @@ sub mw_import {
 
 		print "commit refs/heads/master\n";
 		print "mark :$n\n";
-		print "committer $user <none\@example.com> ", $dt->epoch, " +0000\n";
+		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
 		print "M 644 inline $title.wiki\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
