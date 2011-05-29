@@ -85,6 +85,30 @@ sub mw_fetch {
 }
 
 sub mw_import {
+	
+	sub get_last_revision {
+		# Get last commit sha1
+		my $commit_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`;
+
+		# Get note regarding that commit
+		chomp($commit_sha1);
+		my $note = `git notes show $commit_sha1 2>/dev/null`;
+		my @note_info = split(/ /, $note);
+
+		my $lastrevision_number;
+		if (!($note_info[0] eq "mediawiki_revision:")) {
+			print STDERR "No previous mediawiki revision found, fetching from beginning\n";
+			$lastrevision_number = 0;
+		} else {
+			# Notes are formatted : mediawiki_revision: #number
+			$lastrevision_number = $note_info[1];
+			chomp($lastrevision_number);
+			print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
+		}
+
+		return $lastrevision_number;
+	}
+
 	my $url = $_[0];
 
 	my $mediawiki = MediaWiki::API->new;
@@ -98,7 +122,8 @@ sub mw_import {
 
 	my @revisions;
 
-	print STDERR "Fetching revisions...\n";
+	print STDERR "Searching revisions...\n";
+	my $fetch_from = get_last_revision() + 1;
 	my $n = 1;
 
 	foreach my $page (@$pages) {
@@ -111,11 +136,13 @@ sub mw_import {
 			action => 'query',
 			prop => 'revisions',
 			rvprop => 'ids',
+			rvdir => 'newer',
+			rvstartid => $fetch_from,
 			rvlimit => 500,
 			pageids => $page->{pageid},
 		};
 
-		my $revnum = 1;
+		my $revnum = 0;
 		# Get 500 revisions at a time
 		while (1) {
 			my $result = $mediawiki->api($query);
@@ -134,17 +161,17 @@ sub mw_import {
 			print "\n";
 		}
 
-		print STDERR "  Fetched ", $revnum, " revisions.\n";
+		print STDERR "  Found ", $revnum, " revision(s).\n";
 
 	}
 
 
 # Creation of the fast-import stream
-	print STDERR "Writing export data...\n";
+	print STDERR "Fetching & writing export data...\n";
 	binmode STDOUT, ':binary';
 	$n = 0;
 
-	foreach my $pagerevids (sort {$a->{revid} >= $b->{revid}} @revisions) {
+	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
 
 		my $query = {
 			action => 'query',
@@ -168,18 +195,24 @@ sub mw_import {
 
 		print STDERR "$n/", scalar(@revisions), ": $title\n";
 
+		if ($fetch_from == 0 && $n == 1) {
+			print "reset refs/heads/master\n";
+		}
 		print "commit refs/heads/master\n";
 		print "mark :$n\n";
 		print "committer $user <none\@example.com> ", $dt->epoch, " +0000\n";
 		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
+		if ($fetch_from != 0) {
+			print "from refs/heads/master^0\n";
+		}
 		print "M 644 inline $title.wiki\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
+	
+		#TODO : REMOVE THAT LINE
+		print STDERR "Last revision fetched is $pagerevids->{revid}\n";
+		#/TODO	
 	}
-
-	print "reset refs/heads/master\n";
-	print "from :$n";
-
 
 }
 

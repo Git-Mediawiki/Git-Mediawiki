@@ -7,6 +7,26 @@ use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
 use Data::Dumper;
 
+sub get_last_revision {
+	# Get last commit sha1
+	my $commit_sha1 = `git rev-parse refs/remotes/origin/master^`;
+
+	# Get note regarding that commit
+	chomp($commit_sha1);
+	my $note = `git notes show $commit_sha1 2>/dev/null`;
+	my @note_info = split(/ /, $note);
+
+	my $lastrevision_number;
+	if (!($note_info[0] eq "mediawiki_revision:")) {
+		$lastrevision_number = 0;
+	} else {
+		# Notes are formatted : mediawiki_revision: #number
+		$lastrevision_number = $note_info[1];
+	}
+
+	return $lastrevision_number;
+}
+
 my $url = shift;
 
 my $mediawiki = MediaWiki::API->new;
@@ -34,6 +54,7 @@ foreach my $page (@$pages) {
 		prop => 'revisions',
 		rvprop => 'ids',
 		rvlimit => 500,
+		rvstartid => get_last_revision(),
 		pageids => $page->{pageid},
 	};
 
