@@ -20,4 +20,4 @@ Do not hesitate to contact us if you have any questions about the project.
 * [[Implementation documentation]]
    * [[Remote helpers]]
    * [[Fast import & Fast export]]
-   * [[Storing metadata : Git notes]]
+   * Storing metadata : [[Git notes]]
