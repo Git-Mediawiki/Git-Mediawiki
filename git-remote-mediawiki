@@ -200,14 +200,16 @@ sub mw_import {
 
 		print STDERR "$n/", scalar(@revisions), ": $title\n";
 
-		if ($fetch_from == 0 && $n == 1) {
+		# If it's a clone and the first revision, initalize this ref
+		if ($fetch_from == 1 && $n == 1) {
 			print "reset refs/heads/master\n";
 		}
 		print "commit refs/heads/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
-		if ($fetch_from != 0) {
+		# If it's not a clone, needs to know where to start from
+		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/heads/master^0\n";
 		}
 		print "M 644 inline $title.wiki\n";
