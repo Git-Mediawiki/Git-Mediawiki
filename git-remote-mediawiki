@@ -200,6 +200,8 @@ sub mw_import {
 
 		print STDERR "$n/", scalar(@revisions), ": $title\n";
 
+
+		
 		# If it's a clone and the first revision, initalize this ref
 		if ($fetch_from == 1 && $n == 1) {
 			print "reset refs/heads/master\n";
@@ -216,6 +218,26 @@ sub mw_import {
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
 	
+
+		#notes 
+		my $note_comment = encode_utf8("note added by git-mediawiki");
+		my $note_comment_length = bytes::length($note_comment);
+		my $note_content = encode_utf8("mediawiki_revision: " . $pagerevids->{revid} . "\n");
+		my $note_content_length = bytes::length($note_content);
+		
+		if ($fetch_from == 1 && $n == 1) {
+			print "reset refs/notes/commits\n";
+		}
+		print "commit refs/notes/commits\n";
+		print "committer $user <user\@example.com> ", $dt->epoch, " +0000\n";
+		print "data ", $note_comment_length, "\n", $note_comment;
+		if ($fetch_from != 1 && $n == 1) {
+			print "from refs/notes/commits^0\n";
+		}
+		print "N inline :$n\n";
+		print "data ", $note_content_length, "\n", $note_content;
+		print "\n\n";
+
 		#TODO : REMOVE THAT LINE
 		print STDERR "Last revision fetched is $pagerevids->{revid}\n";
 		#/TODO	
