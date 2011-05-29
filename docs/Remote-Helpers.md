@@ -26,7 +26,7 @@ Fetch seems to make no sense in our case. We simply can't fetch objects from med
 
 ###Import
 
-Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. It fetches every revision on the wiki and then prints the fast-import stream with this format for each revision :
+Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. Using [[git notes]], it is possible to know which revision was the last imported from the mediawiki. If it's a git clone, the value is 0 and every revision is imported from the wiki. Otherwise, it only imports revisions that were created after the last one. Finally, it prints the fast-import stream with this format for each revision :
 
 `commit refs/heads/master`
 
@@ -43,17 +43,6 @@ Import prints a fast-import stream of the mediawiki to the standard output. It i
 `data <sizeoffile>`
 
 `<content>`
-
-It ends with a 
-
-`reset refs/heads/master`
-
-`from :<lastmark>`
-
-## Further developing
-
-* We need to decide if we need to fetch all the revisions with their content, order them by datetime and then print the fast-export stream or fetch only the revision ids and fetch the content file by file. The first alternative is easier on the server-side but may be hard on memory if the wiki that we fetch is huge (such as wikipedia)
-* We need to figure out how to divide the import function because for now, it always imports the entire wiki and then diffs to see what files have changed, which is problematic for git pulls. 
 
 ## Documentation 
 
