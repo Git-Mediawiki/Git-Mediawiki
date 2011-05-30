@@ -4,7 +4,7 @@ Welcome to the wiki of the Git-Mediawiki's project .
 
 Git-Mediawiki is a project which aim is to create a gate between git and mediawiki, allowing git users to push and pull objects from mediawiki just as one would do with a classic git repository.
 
-## Is there no other solution yet ?
+## Is there already other solutions ?
 
 Github and ikiwiki propose solutions for git-based wikis. Our project wants to be transparent to wiki users and transplantable on any wiki without having to change anything server-side. A simple git clone on a mediawiki would initialize a repository on your side and you would be able to interact with the wiki without bothering classic users.
 
