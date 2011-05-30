@@ -7,6 +7,7 @@ use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
 
+my $remotename = $ARGV[0];
 my $url = $ARGV[1];
 
 print STDERR "$url\n";
@@ -62,6 +63,7 @@ while ($loop) {
 
 sub mw_capabilities {
 #	print STDOUT "fetch\n";
+	print STDOUT "refspec refs/heads/*:refs/mediawiki/$remotename/*\n";
 	print STDOUT "import\n";
 	print STDOUT "list\n";
 	print STDOUT "option\n";
@@ -91,7 +93,7 @@ sub mw_import {
 	
 	sub get_last_revision {
 		# Get last commit sha1
-		my $commit_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`;
+		my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
 
 		# Get note regarding that commit
 		chomp($commit_sha1);
@@ -202,15 +204,15 @@ sub mw_import {
 		
 		# If it's a clone and the first revision, initalize this ref
 		if ($fetch_from == 1 && $n == 1) {
-			#print "reset refs/remotes/origin/master\n";
+			#print "reset refs/mediawiki/$remotename/master\n";
 		}
-		print "commit refs/remotes/origin/master\n";
+		print "commit refs/mediawiki/$remotename/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
 		# If it's not a clone, needs to know where to start from
 		if ($fetch_from != 1 && $n == 1) {
-			print "from refs/remotes/origin/master^0\n";
+			print "from refs/mediawiki/$remotename/master^0\n";
 		}
 		print "M 644 inline $title.wiki\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
