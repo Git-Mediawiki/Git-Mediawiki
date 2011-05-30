@@ -44,6 +44,13 @@ Import prints a fast-import stream of the mediawiki to the standard output. It i
 
 `<content>`
 
+###Push
+
+* Check if git has the latest revision of mediawiki. If not, print a fast forward error message and abort. The user will have to pull to then push.
+
+* Send the files one by one. Before sending one file, git has to check that it has not been updated on the mediawiki. If it has been modified, git should catch an error message from mediawiki and act consequently (still to be determined)
+
+
 ## Documentation 
 
 [Man page of git remote-helpers](http://www.kernel.org/pub/software/scm/git/docs/git-remote-helpers.html)
