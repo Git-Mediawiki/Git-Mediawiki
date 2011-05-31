@@ -126,6 +126,10 @@ sub mw_import {
 			list => 'allpages',
 			aplimit => 500,
 		});
+	if ($pages == undef) {
+		print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
+		exit;
+	}
 
 	my @revisions;
 
