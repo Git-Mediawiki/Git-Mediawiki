@@ -122,10 +122,10 @@ sub mw_import {
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
 	my $pages = $mediawiki->list({
-			action => 'query',
-			list => 'allpages',
-			aplimit => 500,
-		});
+		action => 'query',
+		list => 'allpages',
+		aplimit => 500,
+	});
 
 	my @revisions;
 
@@ -202,10 +202,6 @@ sub mw_import {
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
 		
-		# If it's a clone and the first revision, initalize this ref
-		if ($fetch_from == 1 && $n == 1) {
-			#print "reset refs/mediawiki/$remotename/master\n";
-		}
 		print "commit refs/mediawiki/$remotename/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
@@ -240,9 +236,15 @@ sub mw_import {
 
 	}
 
-	if ($n != 0 && $fetch_from == 1) { 
-		print "reset refs/heads/master\n";
-		print "from :$n\n";
+	if ($fetch_from == 1) { 
+		if ($n != 0) {
+			print "reset refs/heads/master\n";
+			print "from :$n\n";
+		} else {
+			print STDERR "You appear to have cloned an empty mediawiki\n";
+			#What do we have to do here ? If nothing is done, an error is thrown saying that
+			#HEAD is refering to unknown object 0000000000000000000
+		}
 	}
 
 }
@@ -250,6 +252,3 @@ sub mw_import {
 sub mw_push {
 	print STDERR "not yet implemented \n";
 }
-
-
-1;
