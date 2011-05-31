@@ -15,7 +15,7 @@ $mw->{config}->{api_url} = "$url/api.php";
 my $pages = $mw->list({
     action => 'query',
     list => 'allpages',
-    aplimit => 2,
+    aplimit => 500,
 });
 
 # Keep everything in a db so we are restartable.
@@ -93,9 +93,9 @@ foreach my $rev (sort { $a->{timestamp} cmp $b->{timestamp} } @revisions) {
   $title =~ y/ /_/;
 
   print STDERR "$n/", scalar(@revisions), ": $rev->{page}->{title}\n";
+  $n++;
 
   print "commit refs/remotes/origin/master\n";
-  print "mark :$n\n";
   print "committer $user <none\@example.com> ", $dt->epoch, " +0000\n";
   print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
   print "M 644 inline $title.wiki\n";
@@ -106,14 +106,4 @@ foreach my $rev (sort { $a->{timestamp} cmp $b->{timestamp} } @revisions) {
   while (read($fh, my $buf, 4096)) {
     print $buf;
   }
-  $n++;
-  print "\n\n";
 }
-
-$n--;
-print "reset refs/heads/master\n";
-print "from :$n \n\n";
-
-print "reset refs/remotes/origin/master\n";
-print "from :$n";
-

@@ -17,7 +17,7 @@ my $loop = 1;
 my $entry;
 my @cmd;
 while ($loop) {
-	$| = 1; #flush stdout
+	$| = 1; #flush STDOUT
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
@@ -27,23 +27,40 @@ while ($loop) {
 		case "capabilities" {
 			if ($cmd[1] eq "") {
 				mw_capabilities();
+			} else {
+			       $loop = 0;	
 			}
 		}
 		case "list" {
 			if ($cmd[2] eq "") {
 				mw_list($cmd[1]);
-			} 
+			} else {
+			       $loop = 0;	
+			}
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
 				mw_import($url);
-			} 
+			} else {
+			       $loop = 0;	
+			}
 		}
 		case "option" {
 			mw_option($cmd[1],$cmd[2]);
 		}
-		case "fetch" {
-			mw_fetch($url);
+		case "push" {
+			#check the pattern +<src>:<dist>
+			my @pushargs = split(/:/,$cmd[1]);
+			if ($pushargs[1] ne "" && $pushargs[2] eq "" 
+			&& (substr($pushargs[0],0,1) eq "+")) {	
+				print "kikoo";
+				mw_push(substr($pushargs[0],1),$pushargs[1]);
+			} else {
+			       $loop = 0;	
+			}
+		}
+		case "option" {
+			mw_option($cmd[1],$cmd[2]);
 		}
 		case "push" {
 			#check the pattern +<src>:<dist>
@@ -56,13 +73,36 @@ while ($loop) {
 		}
 		else {
 			$loop = 0;
-			close(FILE);
 		}
 	}
+	close(FILE);
+}
+
+########################## Functions ##############################
+
+sub get_last_local_revision {
+	# Get last commit sha1
+	my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
+
+	# Get note regarding that commit
+	chomp($commit_sha1);
+	my $note = `git notes show $commit_sha1 2>/dev/null`;
+	my @note_info = split(/ /, $note);
+
+	my $lastrevision_number;
+	if (!($note_info[0] eq "mediawiki_revision:")) {
+		print STDERR "No previous mediawiki revision found, fetching from beginning\n";
+		$lastrevision_number = 0;
+	} else {
+		# Notes are formatted : mediawiki_revision: #number
+		$lastrevision_number = $note_info[1];
+		chomp($lastrevision_number);
+		print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
+	}
+	return $lastrevision_number;
 }
 
 sub mw_capabilities {
-#	print STDOUT "fetch\n";
 	print STDOUT "refspec refs/heads/*:refs/mediawiki/$remotename/*\n";
 	print STDOUT "import\n";
 	print STDOUT "list\n";
@@ -73,9 +113,7 @@ sub mw_capabilities {
 
 sub mw_list {
 	print STDOUT "? refs/heads/master\n";
-#	if ($_[0] eq "") { # call to list and not list for push
 	print STDOUT '@'."refs/heads/master HEAD\n";
-#	}
 	print STDOUT "\n";
 
 }
@@ -85,36 +123,7 @@ sub mw_option {
 	print STDOUT "unsupported\n";
 }
 
-sub mw_fetch {
-	print "\n";
-}
-
 sub mw_import {
-	
-	sub get_last_revision {
-		# Get last commit sha1
-		my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
-
-		# Get note regarding that commit
-		chomp($commit_sha1);
-		my $note = `git notes show $commit_sha1 2>/dev/null`;
-		my @note_info = split(/ /, $note);
-
-		my $lastrevision_number;
-		if (!($note_info[0] eq "mediawiki_revision:")) {
-			print STDERR "No previous mediawiki revision found, fetching from beginning\n";
-			$lastrevision_number = 0;
-		} else {
-			# Notes are formatted : mediawiki_revision: #number
-			$lastrevision_number = $note_info[1];
-			chomp($lastrevision_number);
-			print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
-		}
-
-		return $lastrevision_number;
-	}
-
-	my $url = $_[0];
 	my @wiki_name = split(/:\/\//,$url); 
 	my $wiki_name = $wiki_name[1];
 
@@ -132,11 +141,9 @@ sub mw_import {
 	}
 
 	my @revisions;
-
 	print STDERR "Searching revisions...\n";
-	my $fetch_from = get_last_revision() + 1;
+	my $fetch_from = get_last_local_revision() + 1;
 	my $n = 1;
-
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
 
@@ -154,7 +161,7 @@ sub mw_import {
 		};
 
 		my $revnum = 0;
-		# Get 500 revisions at a time
+		# Get 500 revisions at a time due to the mediawiki api limit
 		while (1) {
 			my $result = $mediawiki->api($query);
 
@@ -166,16 +173,12 @@ sub mw_import {
 				push (@revisions, $page_rev_ids);
 				$revnum++;
 			}
-
 			last unless $result->{'query-continue'};
 			$query->{rvstartid} = $result->{'query-continue'}->{revisions}->{rvstartid};
 			print "\n";
 		}
-
 		print STDERR "  Found ", $revnum, " revision(s).\n";
-
 	}
-
 
 # Creation of the fast-import stream
 	print STDERR "Fetching & writing export data...\n";
@@ -183,7 +186,7 @@ sub mw_import {
 	$n = 0;
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
-
+		#fetch the content of the pages
 		my $query = {
 			action => 'query',
 			prop => 'revisions',
@@ -219,7 +222,7 @@ sub mw_import {
 		print "\n\n";
 	
 
-		#notes 
+		# mediawiki revision number in the git note
 		my $note_comment = encode_utf8("note added by git-mediawiki");
 		my $note_comment_length = bytes::length($note_comment);
 		my $note_content = encode_utf8("mediawiki_revision: " . $pagerevids->{revid} . "\n");
@@ -237,7 +240,6 @@ sub mw_import {
 		print "N inline :$n\n";
 		print "data ", $note_content_length, "\n", $note_content;
 		print "\n\n";
-
 	}
 
 	if ($fetch_from == 1) { 
