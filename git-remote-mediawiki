@@ -47,10 +47,8 @@ while ($loop) {
 		}
 		case "push" {
 			#check the pattern +<src>:<dist>
-			my @pushargs = split(/:/,$cmd[1]);
-			if ($pushargs[1] ne "" && $pushargs[2] eq "" 
-			&& (substr($pushargs[0],0,1) eq "+")) {	
-				print "kikoo";
+			my @pushargs = split(/:/,$url);
+			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
 				mw_push(substr($pushargs[0],1),$pushargs[1]);
 			}
 		}
@@ -250,5 +248,80 @@ sub mw_import {
 }
 
 sub mw_push {
-	print STDERR "not yet implemented \n";
+	sub get_last_remote_revision {
+		my $mediawiki = MediaWiki::API->new;
+		$mediawiki->{config}->{api_url} = "$url/api.php";
+
+		my $pages = $mediawiki->list({
+			action => 'query',
+			list => 'allpages',
+			aplimit => 500,
+		});
+
+		print STDERR "Searching last remote revision...\n";
+
+		my $max_rev_num = 0;
+
+		foreach my $page (@$pages) {
+			my $id = $page->{pageid};
+
+
+			my $query = {
+				action => 'query',
+				prop => 'revisions',
+				rvprop => 'ids',
+				pageids => $id,
+			};
+
+			my $result = $mediawiki->api($query);
+			
+			my $lastrev = pop(@{$result->{query}->{pages}->{$id}->{revisions}});
+			
+			$max_rev_num = ($lastrev->{revid} > $max_rev_num ? $lastrev->{revid} : $max_rev_num);
+		}
+
+		print STDERR "Last remote version found is $max_rev_num\n";
+		return $max_rev_num;
+	}
+
+	sub push_file {
+		print STDERR "Push file : $_[0]\n";
+	}
+	
+	get_last_remote_revision();
+	# Get sha1 of commit pointed by local HEAD
+	# Get sha1 of commit pointed by remotes/origin/master
+	# If they are equal : "Already up to date"
+	# Else
+		# For each commit in between those two, including the one pointed by HEAD and in chronological order
+			# Get files related to this commit
+			# Push this file
+		# End for each
+	# endif
+
+	my $HEAD_sha1 = `git rev-parse HEAD 2>/dev/null`; chomp($HEAD_sha1);
+	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
+
+	if ($HEAD_sha1 eq $remoteorigin_sha1) {
+		print STDERR "Everything up-to-date\n";
+	} else {
+		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and excluding refs/remotes/origin/master
+		my @commit_list = ();
+		my $n = 0;
+		while (1) {
+			my $this_sha1 = `git rev-parse HEAD~$n 2>/dev/null`; chomp($this_sha1);
+			last unless ($this_sha1 ne $remoteorigin_sha1);
+			unshift(@commit_list, $this_sha1);
+			$n++;
+		}
+
+		foreach my $commit_sha1 (@commit_list) {
+			my $tree = `git ls-tree $commit_sha1`;
+			my @blob_info_list = split(/\n/, $tree);
+			foreach my $blob_info (@blob_info_list) {
+				my @blob_info_split = split(/ |\t/, $blob_info);
+				push_file($blob_info_split[2]);
+			}			
+		}
+	}
 }
