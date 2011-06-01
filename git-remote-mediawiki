@@ -40,10 +40,8 @@ while ($loop) {
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
-				mw_import($url);
-			} else {
-			       $loop = 0;
-			}
+				mw_import();
+			} 
 		}
 		case "option" {
 			mw_option($cmd[1],$cmd[2]);
@@ -51,9 +49,8 @@ while ($loop) {
 		case "push" {
 			#check the pattern +<src>:<dist>
 			my @pushargs = split(/:/,$cmd[1]);
-			if ($pushargs[1] ne "" && $pushargs[2] eq ""
-			&& (substr($pushargs[0],0,1) eq "+")) {
-				mw_push(substr($pushargs[0],1),$pushargs[1]);
+			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
+				mw_push($pushargs[0],$pushargs[1]);
 			} else {
 			       $loop = 0;
 			}
@@ -77,15 +74,49 @@ sub get_last_local_revision {
 
 	my $lastrevision_number;
 	if (!($note_info[0] eq "mediawiki_revision:")) {
-		print STDERR "No previous mediawiki revision found, fetching from beginning\n";
+		print STDERR "No previous mediawiki revision found";
 		$lastrevision_number = 0;
 	} else {
 		# Notes are formatted : mediawiki_revision: #number
 		$lastrevision_number = $note_info[1];
 		chomp($lastrevision_number);
-		print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
+		print STDERR "Last mediawiki revision found is $lastrevision_number ";
 	}
 	return $lastrevision_number;
+}
+
+sub get_last_remote_revision {
+	my $mediawiki = MediaWiki::API->new;
+	$mediawiki->{config}->{api_url} = "$url/api.php";
+
+	my $pages = $mediawiki->list({
+		action => 'query',
+		list => 'allpages',
+		aplimit => 500,
+	});
+
+	my $max_rev_num = 0;
+
+	foreach my $page (@$pages) {
+		my $id = $page->{pageid};
+
+
+		my $query = {
+			action => 'query',
+			prop => 'revisions',
+			rvprop => 'ids',
+			pageids => $id,
+		};
+
+		my $result = $mediawiki->api($query);
+		
+		my $lastrev = pop(@{$result->{query}->{pages}->{$id}->{revisions}});
+		
+		$max_rev_num = ($lastrev->{revid} > $max_rev_num ? $lastrev->{revid} : $max_rev_num);
+	}
+
+	print STDERR "Last remote version found is $max_rev_num\n";
+	return $max_rev_num;
 }
 
 sub mw_capabilities {
@@ -134,6 +165,11 @@ sub mw_import {
 	my @revisions;
 	print STDERR "Searching revisions...\n";
 	my $fetch_from = get_last_local_revision() + 1;
+	if ($fetch_from == 1) {
+		print STDERR ", fetching from beginning\n";
+	} else {
+		print STDERR ", fetching from here\n";
+	}
 	my $n = 1;
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
@@ -196,6 +232,9 @@ sub mw_import {
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
 		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		my $content = $rev->{'*'};
+		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
+		# the last line of a file, push it and then pull it back from mediawiki.
+		$content .= "\n"; 
 		$title =~ y/ /_/;
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
@@ -247,5 +286,77 @@ sub mw_import {
 }
 
 sub mw_push {
-	print STDERR "not yet implemented \n";
+
+	sub push_file {
+		#$_[0] contains a string in this format : 
+		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.wiki>
+		#$_[1] contains the title of the commit message (the only phrase kept in the revision message)
+		my @blob_info_split = split(/ |\t/, $_[0]);
+
+		my $sha1 = $blob_info_split[3];
+		my $complete_file_name = $blob_info_split[5];
+		my @complete_file_name_split = split(/\./, $complete_file_name);
+		my $title = $complete_file_name_split[0];
+		my $file_content = `git cat-file -p $sha1`;
+		chomp($file_content);
+
+		my $mw = MediaWiki::API->new();
+		$mw->{config}->{api_url} = "$url/api.php";
+
+		# log in to the wiki
+		#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+		$mw->edit( {
+			action => 'edit',
+			summary => $_[1], 
+			title => $title,
+			text => encode_utf8($file_content),
+		});
+
+		print STDERR "Pushed file : $sha1 - $title\n";
+	}
+	
+	my $last_local_revid = get_last_local_revision();
+	my $last_remote_revid = get_last_remote_revision();
+	# Get sha1 of commit pointed by local HEAD
+	# Get sha1 of commit pointed by remotes/origin/master
+	# If they are equal : "Already up to date"
+	# Else
+		# For each commit in between those two, including the one pointed by HEAD and in chronological order
+			# Get files related to this commit
+			# Push this file
+		# End for each
+	# endif
+
+	my $HEAD_sha1 = `git rev-parse $_[0] 2>/dev/null`; chomp($HEAD_sha1);
+	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
+
+	if ($last_local_revid < $last_remote_revid){
+		my $message = "\"To prevent you from losing history, non-fast-forward updates were rejected \\n";
+		$message .= "Merge the remote changes (e.g. 'git pull') before pushing again. See the";
+		$message .= " 'Note about fast-forwards' section of 'git push --help' for details.\"";
+		print "error $_[0] $message\n";
+	} elsif ($HEAD_sha1 ne $remoteorigin_sha1) {
+		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
+		my $parsed_sha1 = $remoteorigin_sha1;
+		while ($parsed_sha1 ne $HEAD_sha1) {
+			my $commit_info =  `git rev-list --children $_[0] | grep -e "^$parsed_sha1"`;
+			my @commit_info_split = split(/ |\n/, $commit_info);
+			# $commit_info_split[0] is the sha1 of the commit itself
+			# $commit_info_split[1] is the sha1 of its direct child
+			my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
+			my @blob_info_list = split(/\n/, $blob_infos);
+			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
+			chomp($commit_msg);
+			foreach my $blob_info (@blob_info_list) {
+				push_file($blob_info, $commit_msg);
+			}		
+			$parsed_sha1 = $commit_info_split[1];
+		}
+
+		print "ok $_[1]\n";
+
+		# Pulling from mediawiki after pushing in order to keep things synchronized
+		#exec("git pull >/dev/null");
+	}
+	print "\n";
 }
