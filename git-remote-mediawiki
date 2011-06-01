@@ -74,13 +74,13 @@ sub get_last_local_revision {
 
 	my $lastrevision_number;
 	if (!($note_info[0] eq "mediawiki_revision:")) {
-		print STDERR "No previous mediawiki revision found, fetching from beginning\n";
+		print STDERR "No previous mediawiki revision found";
 		$lastrevision_number = 0;
 	} else {
 		# Notes are formatted : mediawiki_revision: #number
 		$lastrevision_number = $note_info[1];
 		chomp($lastrevision_number);
-		print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
+		print STDERR "Last mediawiki revision found is $lastrevision_number ";
 	}
 	return $lastrevision_number;
 }
@@ -94,8 +94,6 @@ sub get_last_remote_revision {
 		list => 'allpages',
 		aplimit => 500,
 	});
-
-	print STDERR "Searching last remote revision...\n";
 
 	my $max_rev_num = 0;
 
@@ -167,6 +165,11 @@ sub mw_import {
 	my @revisions;
 	print STDERR "Searching revisions...\n";
 	my $fetch_from = get_last_local_revision() + 1;
+	if ($fetch_from == 1) {
+		print STDERR ", fetching from beginning\n";
+	} else {
+		print STDERR ", fetching from here\n";
+	}
 	my $n = 1;
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
@@ -327,13 +330,12 @@ sub mw_push {
 	my $HEAD_sha1 = `git rev-parse $_[0] 2>/dev/null`; chomp($HEAD_sha1);
 	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
 
-	if ($HEAD_sha1 eq $remoteorigin_sha1) {
-		print "ok $_[1]\n";
-#		print STDERR "Everything up-to-date\n";
-	} elsif ($last_local_revid < $last_remote_revid){
-		print "error $_[0]\n";
-	#TODO:elsif : Need to add the check on local revision
-	} else {
+	if ($last_local_revid < $last_remote_revid){
+		my $message = "\"To prevent you from losing history, non-fast-forward updates were rejected \\n";
+		$message .= "Merge the remote changes (e.g. 'git pull') before pushing again. See the";
+		$message .= " 'Note about fast-forwards' section of 'git push --help' for details.\"";
+		print "error $_[0] $message\n";
+	} elsif ($HEAD_sha1 ne $remoteorigin_sha1) {
 		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
 		my $parsed_sha1 = $remoteorigin_sha1;
 		while ($parsed_sha1 ne $HEAD_sha1) {
