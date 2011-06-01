@@ -47,9 +47,9 @@ while ($loop) {
 		}
 		case "push" {
 			#check the pattern +<src>:<dist>
-			my @pushargs = split(/:/,$url);
+			my @pushargs = split(/:/,$cmd[1]);
 			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
-				mw_push(substr($pushargs[0],1),$pushargs[1]);
+				mw_push($pushargs[0],$pushargs[1]);
 			}
 		}
 		else {
@@ -285,10 +285,12 @@ sub mw_push {
 	}
 
 	sub push_file {
-		#$_[0] contains a string in this format : 10644 blob <sha1> <filename.wiki>
+		#$_[0] contains a string in this format : 
+		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.wiki>
 		my @blob_info_split = split(/ |\t/, $_[0]);
-		my $sha1 = $blob_info_split[2];
-		my $complete_file_name = $blob_info_split[3];
+
+		my $sha1 = $blob_info_split[3];
+		my $complete_file_name = $blob_info_split[5];
 		my @complete_file_name_split = split(/\./, $complete_file_name);
 		my $title = $complete_file_name_split[0];
 		my $file_content = `git cat-file -p $sha1`;
@@ -302,7 +304,7 @@ sub mw_push {
 			action => 'edit',
 			summary => 'Commited by git user', #should be changed to the commit message
 			title => $title,
-			text => $file_content,
+			text => encode_utf8($file_content),
 		});
 
 		print STDERR "Pushed file : $sha1 - $title\n";
@@ -319,29 +321,33 @@ sub mw_push {
 		# End for each
 	# endif
 
-	my $HEAD_sha1 = `git rev-parse HEAD 2>/dev/null`; chomp($HEAD_sha1);
+	my $HEAD_sha1 = `git rev-parse $_[0] 2>/dev/null`; chomp($HEAD_sha1);
 	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
 
 	if ($HEAD_sha1 eq $remoteorigin_sha1) {
 		print STDERR "Everything up-to-date\n";
 	} else {
-		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and excluding refs/remotes/origin/master
+		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
 		my @commit_list = ();
 		my $n = 0;
 		while (1) {
 			my $this_sha1 = `git rev-parse HEAD~$n 2>/dev/null`; chomp($this_sha1);
-			last unless ($this_sha1 ne $remoteorigin_sha1);
 			unshift(@commit_list, $this_sha1);
+			last unless ($this_sha1 ne $remoteorigin_sha1);
 			$n++;
 		}
 
-		foreach my $commit_sha1 (@commit_list) {
-			print STDERR "Parsing $commit_sha1 from commit list\n";
-			my $tree = `git ls-tree $commit_sha1`;
-			my @blob_info_list = split(/\n/, $tree);
+		for (my $i=0; $i < scalar(@commit_list)-1; $i++) {
+			my $commit_sha1_before = $commit_list[$i];
+			my $commit_sha1_after = $commit_list[$i+1];
+			my $blob_infos = `git diff --raw --abbrev=40 $commit_sha1_before $commit_sha1_after`;
+			my @blob_info_list = split(/\n/, $blob_infos);
 			foreach my $blob_info (@blob_info_list) {
 				push_file($blob_info);
 			}			
 		}
+
+		print "ok $_[1]\n";
+		print "\n";
 	}
 }
