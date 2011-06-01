@@ -285,7 +285,27 @@ sub mw_push {
 	}
 
 	sub push_file {
-		print STDERR "Push file : $_[0]\n";
+		#$_[0] contains a string in this format : 10644 blob <sha1> <filename.wiki>
+		my @blob_info_split = split(/ |\t/, $_[0]);
+		my $sha1 = $blob_info_split[2];
+		my $complete_file_name = $blob_info_split[3];
+		my @complete_file_name_split = split(/\./, $complete_file_name);
+		my $title = $complete_file_name_split[0];
+		my $file_content = `git cat-file -p $sha1`;
+
+		my $mw = MediaWiki::API->new();
+		$mw->{config}->{api_url} = "$url/api.php";
+
+		# log in to the wiki
+		#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+		$mw->edit( {
+			action => 'edit',
+			summary => 'Commited by git user', #should be changed to the commit message
+			title => $title,
+			text => $file_content,
+		});
+
+		print STDERR "Pushed file : $sha1 - $title\n";
 	}
 	
 	get_last_remote_revision();
@@ -316,11 +336,11 @@ sub mw_push {
 		}
 
 		foreach my $commit_sha1 (@commit_list) {
+			print STDERR "Parsing $this_sha1 from commit list\n";
 			my $tree = `git ls-tree $commit_sha1`;
 			my @blob_info_list = split(/\n/, $tree);
 			foreach my $blob_info (@blob_info_list) {
-				my @blob_info_split = split(/ |\t/, $blob_info);
-				push_file($blob_info_split[2]);
+				push_file($blob_info);
 			}			
 		}
 	}
