@@ -208,7 +208,7 @@ sub mw_import {
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/mediawiki/$remotename/master^0\n";
 		}
-		print "M 644 inline $title.wiki\n";
+		print "M 644 inline $title\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
 
