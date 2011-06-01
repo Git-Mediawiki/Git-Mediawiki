@@ -287,6 +287,7 @@ sub mw_push {
 	sub push_file {
 		#$_[0] contains a string in this format : 
 		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.wiki>
+		#$_[1] contains the title of the commit message (the only phrase kept in the revision message)
 		my @blob_info_split = split(/ |\t/, $_[0]);
 
 		my $sha1 = $blob_info_split[3];
@@ -303,7 +304,7 @@ sub mw_push {
 		#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
 		$mw->edit( {
 			action => 'edit',
-			summary => 'Commited by git user', #should be changed to the commit message
+			summary => $_[1], 
 			title => $title,
 			text => encode_utf8($file_content),
 		});
@@ -342,8 +343,10 @@ sub mw_push {
 			# $commit_info_split[1] is the sha1 of its direct child
 			my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
 			my @blob_info_list = split(/\n/, $blob_infos);
+			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
+			chomp($commit_msg);
 			foreach my $blob_info (@blob_info_list) {
-				push_file($blob_info);
+				push_file($blob_info, $commit_msg);
 			}		
 			$parsed_sha1 = $commit_info_split[1];
 		}
