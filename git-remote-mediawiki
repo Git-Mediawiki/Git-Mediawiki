@@ -36,7 +36,7 @@ while ($loop) {
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
-				mw_import($url);
+				mw_import();
 			} 
 		}
 		case "option" {
@@ -112,7 +112,6 @@ sub mw_import {
 		return $lastrevision_number;
 	}
 
-	my $url = $_[0];
 	my @wiki_name = split(/:\/\//,$url); 
 	my $wiki_name = $wiki_name[1];
 
@@ -196,6 +195,9 @@ sub mw_import {
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
 		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		my $content = $rev->{'*'};
+		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
+		# the last line of a file, push it and then pull it back from mediawiki.
+		$content .= "\n"; 
 		$title =~ y/ /_/;
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
@@ -294,6 +296,7 @@ sub mw_push {
 		my @complete_file_name_split = split(/\./, $complete_file_name);
 		my $title = $complete_file_name_split[0];
 		my $file_content = `git cat-file -p $sha1`;
+		chomp($file_content);
 
 		my $mw = MediaWiki::API->new();
 		$mw->{config}->{api_url} = "$url/api.php";
@@ -326,28 +329,27 @@ sub mw_push {
 
 	if ($HEAD_sha1 eq $remoteorigin_sha1) {
 		print STDERR "Everything up-to-date\n";
+	#TODO:elsif : Need to add the check on local revision
 	} else {
 		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
-		my @commit_list = ();
-		my $n = 0;
-		while (1) {
-			my $this_sha1 = `git rev-parse HEAD~$n 2>/dev/null`; chomp($this_sha1);
-			unshift(@commit_list, $this_sha1);
-			last unless ($this_sha1 ne $remoteorigin_sha1);
-			$n++;
-		}
-
-		for (my $i=0; $i < scalar(@commit_list)-1; $i++) {
-			my $commit_sha1_before = $commit_list[$i];
-			my $commit_sha1_after = $commit_list[$i+1];
-			my $blob_infos = `git diff --raw --abbrev=40 $commit_sha1_before $commit_sha1_after`;
+		my $parsed_sha1 = $remoteorigin_sha1;
+		while ($parsed_sha1 ne $HEAD_sha1) {
+			my $commit_info =  `git rev-list --children $_[0] | grep -e "^$parsed_sha1"`;
+			my @commit_info_split = split(/ |\n/, $commit_info);
+			# $commit_info_split[0] is the sha1 of the commit itself
+			# $commit_info_split[1] is the sha1 of its direct child
+			my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
 			my @blob_info_list = split(/\n/, $blob_infos);
 			foreach my $blob_info (@blob_info_list) {
 				push_file($blob_info);
-			}			
+			}		
+			$parsed_sha1 = $commit_info_split[1];
 		}
 
 		print "ok $_[1]\n";
 		print "\n";
+
+		# Pulling from mediawiki after pushing in order to keep things synchronized
+		#exec("git pull >/dev/null");
 	}
 }
