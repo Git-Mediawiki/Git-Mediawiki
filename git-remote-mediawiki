@@ -17,7 +17,7 @@ my $loop = 1;
 my $entry;
 my @cmd;
 while ($loop) {
-	$| = 1; #flush stdout
+	$| = 1; #flush STDOUT
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
@@ -27,12 +27,16 @@ while ($loop) {
 		case "capabilities" {
 			if ($cmd[1] eq "") {
 				mw_capabilities();
+			} else {
+			       $loop = 0;
 			}
 		}
 		case "list" {
 			if ($cmd[2] eq "") {
 				mw_list($cmd[1]);
-			} 
+			} else {
+			       $loop = 0;
+			}
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
@@ -42,25 +46,85 @@ while ($loop) {
 		case "option" {
 			mw_option($cmd[1],$cmd[2]);
 		}
-		case "fetch" {
-			mw_fetch($url);
-		}
 		case "push" {
 			#check the pattern +<src>:<dist>
 			my @pushargs = split(/:/,$cmd[1]);
 			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
 				mw_push($pushargs[0],$pushargs[1]);
+			} else {
+			       $loop = 0;
 			}
-		}
-		else {
+		} else {
 			$loop = 0;
-			close(FILE);
 		}
 	}
+	close(FILE);
+}
+
+########################## Functions ##############################
+
+sub get_last_local_revision {
+	# Get last commit sha1
+	my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
+
+	# Get note regarding that commit
+	chomp($commit_sha1);
+	my $note = `git notes show $commit_sha1 2>/dev/null`;
+	my @note_info = split(/ /, $note);
+
+	my $lastrevision_number;
+	if (!($note_info[0] eq "mediawiki_revision:")) {
+		print STDERR "No previous mediawiki revision found, fetching from beginning\n";
+		$lastrevision_number = 0;
+	} else {
+		# Notes are formatted : mediawiki_revision: #number
+		$lastrevision_number = $note_info[1];
+		chomp($lastrevision_number);
+		print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
+	}
+	return $lastrevision_number;
+}
+
+sub get_last_remote_revision {
+	my $mediawiki = MediaWiki::API->new;
+	$mediawiki->{config}->{api_url} = "$url/api.php";
+
+	my $pages = $mediawiki->list({
+		action => 'query',
+		list => 'allpages',
+		aplimit => 500,
+	});
+
+	print STDERR "Searching last remote revision...\n";
+
+	my $max_rev_num = 0;
+
+	foreach my $page (@$pages) {
+		my $id = $page->{pageid};
+
+
+		my $query = {
+			action => 'query',
+			prop => 'revisions',
+			rvprop => 'ids',
+			pageids => $id,
+		};
+
+		my $result = $mediawiki->api($query);
+		
+		my $lastrev = pop(@{$result->{query}->{pages}->{$id}->{revisions}});
+		
+		$max_rev_num = ($lastrev->{revid} > $max_rev_num ? $lastrev->{revid} : $max_rev_num);
+	}
+
+	print STDERR "Last remote version found is $max_rev_num\n";
+	return $max_rev_num;
 }
 
 sub mw_capabilities {
-#	print STDOUT "fetch\n";
+	# Revisions are imported to the private namespace
+	# refs/mediawiki/$remotename/ by the helper and fetched into
+	# refs/remotes/$remotename later by fetch.
 	print STDOUT "refspec refs/heads/*:refs/mediawiki/$remotename/*\n";
 	print STDOUT "import\n";
 	print STDOUT "list\n";
@@ -70,10 +134,10 @@ sub mw_capabilities {
 }
 
 sub mw_list {
+	# MediaWiki do not have branches, we consider one branch arbitrarily
+	# called master
 	print STDOUT "? refs/heads/master\n";
-#	if ($_[0] eq "") { # call to list and not list for push
 	print STDOUT '@'."refs/heads/master HEAD\n";
-#	}
 	print STDOUT "\n";
 
 }
@@ -83,36 +147,8 @@ sub mw_option {
 	print STDOUT "unsupported\n";
 }
 
-sub mw_fetch {
-	print "\n";
-}
-
 sub mw_import {
-	
-	sub get_last_revision {
-		# Get last commit sha1
-		my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
-
-		# Get note regarding that commit
-		chomp($commit_sha1);
-		my $note = `git notes show $commit_sha1 2>/dev/null`;
-		my @note_info = split(/ /, $note);
-
-		my $lastrevision_number;
-		if (!($note_info[0] eq "mediawiki_revision:")) {
-			print STDERR "No previous mediawiki revision found, fetching from beginning\n";
-			$lastrevision_number = 0;
-		} else {
-			# Notes are formatted : mediawiki_revision: #number
-			$lastrevision_number = $note_info[1];
-			chomp($lastrevision_number);
-			print STDERR "Last mediawiki revision found is $lastrevision_number, fetching from here\n";
-		}
-
-		return $lastrevision_number;
-	}
-
-	my @wiki_name = split(/:\/\//,$url); 
+	my @wiki_name = split(/:\/\//,$url);
 	my $wiki_name = $wiki_name[1];
 
 	my $mediawiki = MediaWiki::API->new;
@@ -123,13 +159,15 @@ sub mw_import {
 		list => 'allpages',
 		aplimit => 500,
 	});
+	if ($pages == undef) {
+		print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
+		exit;
+	}
 
 	my @revisions;
-
 	print STDERR "Searching revisions...\n";
-	my $fetch_from = get_last_revision() + 1;
+	my $fetch_from = get_last_local_revision() + 1;
 	my $n = 1;
-
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
 
@@ -147,7 +185,7 @@ sub mw_import {
 		};
 
 		my $revnum = 0;
-		# Get 500 revisions at a time
+		# Get 500 revisions at a time due to the mediawiki api limit
 		while (1) {
 			my $result = $mediawiki->api($query);
 
@@ -159,24 +197,20 @@ sub mw_import {
 				push (@revisions, $page_rev_ids);
 				$revnum++;
 			}
-
 			last unless $result->{'query-continue'};
 			$query->{rvstartid} = $result->{'query-continue'}->{revisions}->{rvstartid};
 			print "\n";
 		}
-
 		print STDERR "  Found ", $revnum, " revision(s).\n";
-
 	}
 
-
-# Creation of the fast-import stream
+	# Creation of the fast-import stream
 	print STDERR "Fetching & writing export data...\n";
 	binmode STDOUT, ':binary';
 	$n = 0;
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
-
+		#fetch the content of the pages
 		my $query = {
 			action => 'query',
 			prop => 'revisions',
@@ -201,7 +235,7 @@ sub mw_import {
 		$title =~ y/ /_/;
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
-		
+
 		print "commit refs/mediawiki/$remotename/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
@@ -213,14 +247,14 @@ sub mw_import {
 		print "M 644 inline $title.wiki\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
-	
 
-		#notes 
+
+		# mediawiki revision number in the git note
 		my $note_comment = encode_utf8("note added by git-mediawiki");
 		my $note_comment_length = bytes::length($note_comment);
 		my $note_content = encode_utf8("mediawiki_revision: " . $pagerevids->{revid} . "\n");
 		my $note_content_length = bytes::length($note_content);
-		
+
 		if ($fetch_from == 1 && $n == 1) {
 			print "reset refs/notes/commits\n";
 		}
@@ -233,10 +267,9 @@ sub mw_import {
 		print "N inline :$n\n";
 		print "data ", $note_content_length, "\n", $note_content;
 		print "\n\n";
-
 	}
 
-	if ($fetch_from == 1) { 
+	if ($fetch_from == 1) {
 		if ($n != 0) {
 			print "reset refs/heads/master\n";
 			print "from :$n\n";
@@ -250,41 +283,6 @@ sub mw_import {
 }
 
 sub mw_push {
-	sub get_last_remote_revision {
-		my $mediawiki = MediaWiki::API->new;
-		$mediawiki->{config}->{api_url} = "$url/api.php";
-
-		my $pages = $mediawiki->list({
-			action => 'query',
-			list => 'allpages',
-			aplimit => 500,
-		});
-
-		print STDERR "Searching last remote revision...\n";
-
-		my $max_rev_num = 0;
-
-		foreach my $page (@$pages) {
-			my $id = $page->{pageid};
-
-
-			my $query = {
-				action => 'query',
-				prop => 'revisions',
-				rvprop => 'ids',
-				pageids => $id,
-			};
-
-			my $result = $mediawiki->api($query);
-			
-			my $lastrev = pop(@{$result->{query}->{pages}->{$id}->{revisions}});
-			
-			$max_rev_num = ($lastrev->{revid} > $max_rev_num ? $lastrev->{revid} : $max_rev_num);
-		}
-
-		print STDERR "Last remote version found is $max_rev_num\n";
-		return $max_rev_num;
-	}
 
 	sub push_file {
 		#$_[0] contains a string in this format : 
@@ -313,7 +311,8 @@ sub mw_push {
 		print STDERR "Pushed file : $sha1 - $title\n";
 	}
 	
-	get_last_remote_revision();
+	my $last_local_revid = get_last_local_revision();
+	my $last_remote_revid = get_last_remote_revision();
 	# Get sha1 of commit pointed by local HEAD
 	# Get sha1 of commit pointed by remotes/origin/master
 	# If they are equal : "Already up to date"
@@ -328,7 +327,10 @@ sub mw_push {
 	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
 
 	if ($HEAD_sha1 eq $remoteorigin_sha1) {
-		print STDERR "Everything up-to-date\n";
+		print "ok $_[1]\n";
+#		print STDERR "Everything up-to-date\n";
+	} elsif ($last_local_revid < $last_remote_revid){
+		print "error $_[0]\n";
 	#TODO:elsif : Need to add the check on local revision
 	} else {
 		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
@@ -347,9 +349,9 @@ sub mw_push {
 		}
 
 		print "ok $_[1]\n";
-		print "\n";
 
 		# Pulling from mediawiki after pushing in order to keep things synchronized
 		#exec("git pull >/dev/null");
 	}
+	print "\n";
 }
