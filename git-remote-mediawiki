@@ -336,7 +336,7 @@ sub mw_push {
 		}
 
 		foreach my $commit_sha1 (@commit_list) {
-			print STDERR "Parsing $this_sha1 from commit list\n";
+			print STDERR "Parsing $commit_sha1 from commit list\n";
 			my $tree = `git ls-tree $commit_sha1`;
 			my @blob_info_list = split(/\n/, $tree);
 			foreach my $blob_info (@blob_info_list) {
