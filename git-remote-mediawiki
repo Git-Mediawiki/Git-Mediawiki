@@ -7,6 +7,8 @@ use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
 
+my $slash_replacement = "<slash>";
+
 my $remotename = $ARGV[0];
 my $url = $ARGV[1];
 
@@ -234,7 +236,9 @@ sub mw_import {
 		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
 		$content .= "\n"; 
+		
 		$title =~ y/ /_/;
+		$title =~ s/\//$slash_replacement/g;
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
 
@@ -296,6 +300,7 @@ sub mw_push {
 		my $complete_file_name = $blob_info_split[5];
 		my @complete_file_name_split = split(/\./, $complete_file_name);
 		my $title = $complete_file_name_split[0];
+		$title =~ s/$slash_replacement/\//g;
 		my $file_content = `git cat-file -p $sha1`;
 		chomp($file_content);
 
