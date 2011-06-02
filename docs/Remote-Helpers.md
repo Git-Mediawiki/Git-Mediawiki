@@ -62,10 +62,19 @@ This part creates a note that contains our metadata :
 
 ###Push
 
-* Check if git has the latest revision of mediawiki. If not, print a fast forward error message and abort. The user will have to pull to then push.
+Thanks to git notes, it is possible to know the last local revision fetched. With the mediawiki API, it is also possible to know the last remote revision on the server. If the server is ahead from us, a fast forward error message is thrown.
 
-* Send the files one by one. Before sending one file, git has to check that it has not been updated on the mediawiki. If it has been modified, git should catch an error message from mediawiki and act consequently (still to be determined)
+> We may have an issue here. If one track about a thousand very active pages, even if they want to push a small change on one page, they may never be able to do so and get this message every time.
 
+If they are equal, "Everything up-to-date".
+
+Otherwise, for each commit between remotes/origin/master and HEAD, catch every blob related to these commit and push them in chronological order. To do so, we use git rev-list --children HEAD and travel the tree from remotes/origin/master to HEAD through children. In other words :
+
+* Shortest path from remotes/origin/master to HEAD
+* For each commit encountered
+* Push blobs related to this commit
+
+> We need to add conflict support if files have been changed on the mediawiki between the time the user typed git push and the file is pushed. Mediawiki should already send an exception or a message of some sort. We need to catch it and handle it.
 
 ## Documentation 
 
