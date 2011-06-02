@@ -42,7 +42,7 @@ This chunk handles the data part :
 
 `<content>`
 
-Note that we need to use a secondary ref refs/mediawiki/origin/master otherwise it bugs out. We cannot write directly into refs/remotes/origin/master without errors being thrown.
+Note that we need to use a secondary ref refs/mediawiki/origin/master otherwise it bugs out. We cannot write directly into refs/remotes/origin/master without errors being thrown. This ref is also a blessing as it always points to the last git note metadata, making things easier to know the last local revision.
 
 This part creates a note that contains our metadata : 
 
