@@ -250,7 +250,7 @@ sub mw_import {
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/mediawiki/$remotename/master^0\n";
 		}
-		print "M 644 inline $title\n";
+		print "M 644 inline $title.mw\n";
 		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
 		print "\n\n";
 
@@ -292,35 +292,38 @@ sub mw_push {
 
 	sub push_file {
 		#$_[0] contains a string in this format : 
-		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.wiki>
+		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.mw>
 		#$_[1] contains the title of the commit message (the only phrase kept in the revision message)
 		my @blob_info_split = split(/ |\t/, $_[0]);
 
 		my $sha1 = $blob_info_split[3];
 		my $complete_file_name = $blob_info_split[5];
+
 		my @complete_file_name_split = split(/\./, $complete_file_name);
-		my $title = $complete_file_name_split[0];
-		$title =~ s/$slash_replacement/\//g;
-		my $file_content = `git cat-file -p $sha1`;
-		chomp($file_content);
+		if ($complete_file_name_split[1] eq "mw"){
+			my $title = $complete_file_name_split[0];
+			$title =~ s/$slash_replacement/\//g;
+			my $file_content = `git cat-file -p $sha1`;
+			chomp($file_content);
 
-		my $mw = MediaWiki::API->new();
-		$mw->{config}->{api_url} = "$url/api.php";
+			my $mw = MediaWiki::API->new();
+			$mw->{config}->{api_url} = "$url/api.php";
 
-		# log in to the wiki
-		#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
-		$mw->edit( {
-			action => 'edit',
-			summary => $_[1], 
-			title => encode_utf8($title),
-			text => encode_utf8($file_content),
-		});
+			# log in to the wiki
+			#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+			$mw->edit( {
+				action => 'edit',
+				summary => $_[1], 
+				title => encode_utf8($title),
+				text => encode_utf8($file_content),
+			});
 
-		print STDERR "Pushed file : $sha1 - $title\n";
+			print STDERR "Pushed file : $sha1 - $title\n";
+		} else {
+			print STDERR "$complete_file_name not a mediawiki file. '(Not pushable on this version)\n"
+		}
 	}
 	
-	my $last_local_revid = get_last_local_revision();
-	my $last_remote_revid = get_last_remote_revision();
 	# Get sha1 of commit pointed by local HEAD
 	# Get sha1 of commit pointed by remotes/origin/master
 	# If they are equal : "Already up to date"
@@ -331,6 +334,9 @@ sub mw_push {
 		# End for each
 	# endif
 
+	my $last_local_revid = get_last_local_revision();
+	my $last_remote_revid = get_last_remote_revision();
+
 	my $HEAD_sha1 = `git rev-parse $_[0] 2>/dev/null`; chomp($HEAD_sha1);
 	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
 
@@ -340,7 +346,8 @@ sub mw_push {
 		$message .= " 'Note about fast-forwards' section of 'git push --help' for details.\"";
 		print "error $_[0] $message\n";
 	} elsif ($HEAD_sha1 ne $remoteorigin_sha1) {
-		#Get every commit in between HEAD and refs/remotes/origin/master, including HEAD and refs/remotes/origin/master
+		# Get every commit in between HEAD and refs/remotes/origin/master,
+		# including HEAD and refs/remotes/origin/master
 		my $parsed_sha1 = $remoteorigin_sha1;
 		while ($parsed_sha1 ne $HEAD_sha1) {
 			my $commit_info =  `git rev-list --children $_[0] | grep -e "^$parsed_sha1"`;
