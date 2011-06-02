@@ -174,7 +174,7 @@ sub mw_import {
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
 
-		print STDERR "$n/", scalar(@$pages), ": $page->{title}\n";
+		print STDERR "$n/", scalar(@$pages), ": ". encode_utf8($page->{title})."\n";
 		$n++;
 
 		my $query = {
@@ -202,7 +202,6 @@ sub mw_import {
 			}
 			last unless $result->{'query-continue'};
 			$query->{rvstartid} = $result->{'query-continue'}->{revisions}->{rvstartid};
-			print "\n";
 		}
 		print STDERR "  Found ", $revnum, " revision(s).\n";
 	}
@@ -230,7 +229,7 @@ sub mw_import {
 		my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
 
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
-		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
+		my $title = encode_utf8($result->{query}->{pages}->{$pagerevids->{pageid}}->{title});
 		my $content = $rev->{'*'};
 		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
@@ -308,7 +307,7 @@ sub mw_push {
 		$mw->edit( {
 			action => 'edit',
 			summary => $_[1], 
-			title => $title,
+			title => encode_utf8($title),
 			text => encode_utf8($file_content),
 		});
 
