@@ -6,6 +6,7 @@ use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
 
+# Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
 my $slash_replacement = "<slash>";
 
 my $remotename = $ARGV[0];
@@ -33,9 +34,10 @@ while (1) {
 		last unless ($cmd[1] ne "" && $cmd[2] eq "");
 		mw_import();
 	} elsif ($cmd[0] eq "option") {
+		last unless ($cmd[1] ne "" && $cmd[2] ne "" && $cmd[3] eq "");
 		mw_option($cmd[1],$cmd[2]);
 	} elsif ($cmd[0] eq "push") {
-		# Check the pattern +<src>:<dist>
+		# Check the pattern <src>:<dst>
 		my @pushargs = split(/:/,$cmd[1]);
 		last unless ($pushargs[1] ne "" && $pushargs[2] eq "");
 		mw_push($pushargs[0],$pushargs[1]);
@@ -56,7 +58,8 @@ sub get_last_local_revision {
 
 	# Get note regarding that commit
 	chomp($commit_sha1);
-	my $note = `git notes show $commit_sha1 2>/dev/null`;
+	my $note = `git log --notes=mediawiki 2>/dev/null | grep "mediawiki_revision: " | sed -n 1p`;
+	$note =~ s/^\s+//; #left trim of note 
 	my @note_info = split(/ /, $note);
 
 	my $lastrevision_number;
@@ -67,7 +70,7 @@ sub get_last_local_revision {
 		# Notes are formatted : mediawiki_revision: #number
 		$lastrevision_number = $note_info[1];
 		chomp($lastrevision_number);
-		print STDERR "Last mediawiki revision found is $lastrevision_number ";
+		print STDERR "Last local mediawiki revision found is $lastrevision_number ";
 	}
 	return $lastrevision_number;
 }
@@ -102,8 +105,13 @@ sub get_last_remote_revision {
 		$max_rev_num = ($lastrev->{revid} > $max_rev_num ? $lastrev->{revid} : $max_rev_num);
 	}
 
-	print STDERR "Last remote version found is $max_rev_num\n";
+	print STDERR "Last remote revision found is $max_rev_num\n";
 	return $max_rev_num;
+}
+
+sub literal_data {
+	my ($content) = @_;
+	print "data ", bytes::length($content), "\n", $content;
 }
 
 sub mw_capabilities {
@@ -218,8 +226,9 @@ sub mw_import {
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
 		my $title = encode_utf8($result->{query}->{pages}->{$pagerevids->{pageid}}->{title});
 		my $content = $rev->{'*'};
-		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
+		# This \n is important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
+		# Note : it seems like there are still problems with this. To be investigated further
 		$content .= "\n"; 
 		
 		$title =~ y/ /_/;
@@ -230,39 +239,34 @@ sub mw_import {
 		print "commit refs/mediawiki/$remotename/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
-		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
+		literal_data(encode_utf8($comment));
 		# If it's not a clone, needs to know where to start from
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/mediawiki/$remotename/master^0\n";
 		}
 		print "M 644 inline $title.mw\n";
-		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
+		literal_data(encode_utf8($content));
 		print "\n\n";
 
 
 		# mediawiki revision number in the git note
-		my $note_comment = encode_utf8("note added by git-mediawiki");
-		my $note_comment_length = bytes::length($note_comment);
-		my $note_content = encode_utf8("mediawiki_revision: " . $pagerevids->{revid} . "\n");
-		my $note_content_length = bytes::length($note_content);
-
 		if ($fetch_from == 1 && $n == 1) {
-			print "reset refs/notes/commits\n";
+			print "reset refs/notes/mediawiki\n";
 		}
-		print "commit refs/notes/commits\n";
-		print "committer $user <user\@example.com> ", $dt->epoch, " +0000\n";
-		print "data ", $note_comment_length, "\n", $note_comment;
+		print "commit refs/notes/mediawiki\n";
+		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
+		literal_data(encode_utf8("note added by git-mediawiki"));
 		if ($fetch_from != 1 && $n == 1) {
-			print "from refs/notes/commits^0\n";
+			print "from refs/notes/mediawiki^0\n";
 		}
 		print "N inline :$n\n";
-		print "data ", $note_content_length, "\n", $note_content;
+		literal_data(encode_utf8("mediawiki_revision: " . $pagerevids->{revid}));
 		print "\n\n";
 	}
 
 	if ($fetch_from == 1) {
 		if ($n != 0) {
-			print "reset refs/heads/master\n";
+			print "reset $_[0]\n"; #$_[0] contains refs/heads/master
 			print "from :$n\n";
 		} else {
 			print STDERR "You appear to have cloned an empty mediawiki\n";
