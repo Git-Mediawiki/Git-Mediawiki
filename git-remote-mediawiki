@@ -125,6 +125,11 @@ sub get_last_remote_revision {
 	return $max_rev_num;
 }
 
+sub literal_data {
+	my ($content) = @_;
+	print "data ", bytes::length($content), "\n", $content;
+}
+
 sub mw_capabilities {
 	# Revisions are imported to the private namespace
 	# refs/mediawiki/$remotename/ by the helper and fetched into
@@ -250,33 +255,28 @@ sub mw_import {
 		print "commit refs/mediawiki/$remotename/master\n";
 		print "mark :$n\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
-		print "data ", bytes::length(encode_utf8($comment)), "\n", encode_utf8($comment);
+		literal_data(encode_utf8($comment));
 		# If it's not a clone, needs to know where to start from
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/mediawiki/$remotename/master^0\n";
 		}
 		print "M 644 inline $title.mw\n";
-		print "data ", bytes::length(encode_utf8($content)), "\n", encode_utf8($content);
+		literal_data(encode_utf8($content));
 		print "\n\n";
 
 
 		# mediawiki revision number in the git note
-		my $note_comment = encode_utf8("note added by git-mediawiki");
-		my $note_comment_length = bytes::length($note_comment);
-		my $note_content = encode_utf8("mediawiki_revision: " . $pagerevids->{revid} . "\n");
-		my $note_content_length = bytes::length($note_content);
-
 		if ($fetch_from == 1 && $n == 1) {
 			print "reset refs/notes/mediawiki\n";
 		}
 		print "commit refs/notes/mediawiki\n";
 		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
-		print "data ", $note_comment_length, "\n", $note_comment;
+		literal_data(encode_utf8("note added by git-mediawiki"));
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/notes/mediawiki^0\n";
 		}
 		print "N inline :$n\n";
-		print "data ", $note_content_length, "\n", $note_content;
+		literal_data(encode_utf8("mediawiki_revision: " . $pagerevids->{revid}));
 		print "\n\n";
 	}
 
