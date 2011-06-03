@@ -270,7 +270,7 @@ sub mw_import {
 			print "reset refs/notes/mediawiki\n";
 		}
 		print "commit refs/notes/mediawiki\n";
-		print "committer $user <user\@example.com> ", $dt->epoch, " +0000\n";
+		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		print "data ", $note_comment_length, "\n", $note_comment;
 		if ($fetch_from != 1 && $n == 1) {
 			print "from refs/notes/mediawiki^0\n";
