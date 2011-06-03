@@ -7,6 +7,7 @@ use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
 
+# Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
 my $slash_replacement = "<slash>";
 
 my $remotename = $ARGV[0];
@@ -42,14 +43,16 @@ while ($loop) {
 		}
 		case "import" {
 			if ($cmd[1] ne "" && $cmd[2] eq "") {
-				mw_import();
+				mw_import($cmd[1]);
 			} 
 		}
 		case "option" {
-			mw_option($cmd[1],$cmd[2]);
+			if ($cmd[1] ne "" && $cmd[2] ne "" && $cmd[3] eq "") {
+				mw_option($cmd[1],$cmd[2]);
+			} 
 		}
 		case "push" {
-			#check the pattern +<src>:<dist>
+			#check the pattern <src>:<dst>
 			my @pushargs = split(/:/,$cmd[1]);
 			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
 				mw_push($pushargs[0],$pushargs[1]);
@@ -234,8 +237,9 @@ sub mw_import {
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
 		my $title = encode_utf8($result->{query}->{pages}->{$pagerevids->{pageid}}->{title});
 		my $content = $rev->{'*'};
-		# This \n is VERY important. If it's not added, a conflict is going to happen if you change
+		# This \n is important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
+		# Note : it seems like there are still problems with this. To be investigated further
 		$content .= "\n"; 
 		
 		$title =~ y/ /_/;
@@ -278,7 +282,7 @@ sub mw_import {
 
 	if ($fetch_from == 1) {
 		if ($n != 0) {
-			print "reset refs/heads/master\n";
+			print "reset $_[0]\n"; #$_[0] contains refs/heads/master
 			print "from :$n\n";
 		} else {
 			print STDERR "You appear to have cloned an empty mediawiki\n";
