@@ -32,7 +32,7 @@ while (1) {
 		mw_list($cmd[1]);
 	} elsif ($cmd[0] eq "import") {
 		last unless ($cmd[1] ne "" && $cmd[2] eq "");
-		mw_import();
+		mw_import($cmd[1]);
 	} elsif ($cmd[0] eq "option") {
 		last unless ($cmd[1] ne "" && $cmd[2] ne "" && $cmd[3] eq "");
 		mw_option($cmd[1],$cmd[2]);
