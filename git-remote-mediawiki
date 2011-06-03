@@ -71,7 +71,8 @@ sub get_last_local_revision {
 
 	# Get note regarding that commit
 	chomp($commit_sha1);
-	my $note = `git notes show $commit_sha1 2>/dev/null`;
+	my $note = `git log --notes=mediawiki 2>/dev/null | grep "mediawiki_revision: " | sed -n 1p`;
+	$note =~ s/^\s+//; #left trim of note 
 	my @note_info = split(/ /, $note);
 
 	my $lastrevision_number;
@@ -262,13 +263,13 @@ sub mw_import {
 		my $note_content_length = bytes::length($note_content);
 
 		if ($fetch_from == 1 && $n == 1) {
-			print "reset refs/notes/commits\n";
+			print "reset refs/notes/mediawiki\n";
 		}
-		print "commit refs/notes/commits\n";
+		print "commit refs/notes/mediawiki\n";
 		print "committer $user <user\@example.com> ", $dt->epoch, " +0000\n";
 		print "data ", $note_comment_length, "\n", $note_comment;
 		if ($fetch_from != 1 && $n == 1) {
-			print "from refs/notes/commits^0\n";
+			print "from refs/notes/mediawiki^0\n";
 		}
 		print "N inline :$n\n";
 		print "data ", $note_content_length, "\n", $note_content;
