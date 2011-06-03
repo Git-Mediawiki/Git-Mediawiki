@@ -1,7 +1,6 @@
 #! /usr/bin/perl
 
 use strict;
-use Switch;
 use MediaWiki::API;
 use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
@@ -15,52 +14,38 @@ my $url = $ARGV[1];
 print STDERR "$url\n";
 
 # commands parser
-my $loop = 1;
 my $entry;
 my @cmd;
-while ($loop) {
+while (1) {
 	$| = 1; #flush STDOUT
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
 	@cmd = undef;
 	@cmd = split(/ /,$entry);
-	switch ($cmd[0]) {
-		case "capabilities" {
-			if ($cmd[1] eq "") {
-				mw_capabilities();
-			} else {
-			       $loop = 0;
-			}
-		}
-		case "list" {
-			if ($cmd[2] eq "") {
-				mw_list($cmd[1]);
-			} else {
-			       $loop = 0;
-			}
-		}
-		case "import" {
-			if ($cmd[1] ne "" && $cmd[2] eq "") {
-				mw_import();
-			} 
-		}
-		case "option" {
-			mw_option($cmd[1],$cmd[2]);
-		}
-		case "push" {
-			#check the pattern +<src>:<dist>
-			my @pushargs = split(/:/,$cmd[1]);
-			if ($pushargs[1] ne "" && $pushargs[2] eq "") {
-				mw_push($pushargs[0],$pushargs[1]);
-			} else {
-			       $loop = 0;
-			}
-		} else {
-			$loop = 0;
-		}
+	if ($cmd[0] eq "capabilities") {
+		last unless ($cmd[1] eq "");
+		mw_capabilities();
+	} elsif ($cmd[0] eq "list") {
+		last unless ($cmd[2] eq "");
+		mw_list($cmd[1]);
+	} elsif ($cmd[0] eq "import") {
+		last unless ($cmd[1] ne "" && $cmd[2] eq "");
+		mw_import();
+	} elsif ($cmd[0] eq "option") {
+		mw_option($cmd[1],$cmd[2]);
+	} elsif ($cmd[0] eq "push") {
+		# Check the pattern +<src>:<dist>
+		my @pushargs = split(/:/,$cmd[1]);
+		last unless ($pushargs[1] ne "" && $pushargs[2] eq "");
+		mw_push($pushargs[0],$pushargs[1]);
+	} elsif ($cmd[0] eq "") {
+		# End of input
+		last;
+	} else {
+		print STDERR "Unknown capability. Aborting...\n";
+		last;
 	}
-	close(FILE);
 }
 
 ########################## Functions ##############################
