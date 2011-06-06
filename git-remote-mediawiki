@@ -2,9 +2,9 @@
 
 use strict;
 use MediaWiki::API;
-use Storable qw(freeze thaw);
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
+use warnings;
 
 # Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
 my $slash_replacement = "<slash>";
@@ -22,48 +22,45 @@ while (1) {
 	$entry = <STDIN>;
 	print STDERR $entry;
 	chomp($entry);
-	@cmd = undef;
 	@cmd = split(/ /,$entry);
-	if ($cmd[0] eq "capabilities") {
-		last unless ($cmd[1] eq "");
-		mw_capabilities();
-	} elsif ($cmd[0] eq "list") {
-		last unless ($cmd[2] eq "");
-		mw_list($cmd[1]);
-	} elsif ($cmd[0] eq "import") {
-		last unless ($cmd[1] ne "" && $cmd[2] eq "");
-		mw_import($cmd[1]);
-	} elsif ($cmd[0] eq "option") {
-		last unless ($cmd[1] ne "" && $cmd[2] ne "" && $cmd[3] eq "");
-		mw_option($cmd[1],$cmd[2]);
-	} elsif ($cmd[0] eq "push") {
-		# Check the pattern <src>:<dst>
-		my @pushargs = split(/:/,$cmd[1]);
-		last unless ($pushargs[1] ne "" && $pushargs[2] eq "");
-		mw_push($pushargs[0],$pushargs[1]);
-	} elsif ($cmd[0] eq "") {
+	if (defined($cmd[0])) {
+		if ($cmd[0] eq "capabilities") {
+			last unless (!defined($cmd[1]));
+			mw_capabilities();
+		} elsif ($cmd[0] eq "list") {
+			last unless (!defined($cmd[2]));
+			mw_list($cmd[1]);
+		} elsif ($cmd[0] eq "import") {
+			last unless ($cmd[1] ne "" && !defined($cmd[2]));
+			mw_import($cmd[1]);
+		} elsif ($cmd[0] eq "option") {
+			last unless ($cmd[1] ne "" && $cmd[2] ne "" && !defined($cmd[3]));
+			mw_option($cmd[1],$cmd[2]);
+		} elsif ($cmd[0] eq "push") {
+			# Check the pattern <src>:<dst>
+			my @pushargs = split(/:/,$cmd[1]);
+			last unless ($pushargs[1] ne "" && $pushargs[2] eq "");
+			mw_push($pushargs[0],$pushargs[1]);
+		} else {
+			print STDERR "Unknown capability. Aborting...\n";
+			last;
+		}
+	} else {
 		# End of input
 		last;
-	} else {
-		print STDERR "Unknown capability. Aborting...\n";
-		last;
 	}
+
 }
 
 ########################## Functions ##############################
 
 sub get_last_local_revision {
-	# Get last commit sha1
-	my $commit_sha1 = `git rev-parse refs/mediawiki/$remotename/master 2>/dev/null`;
-
-	# Get note regarding that commit
-	chomp($commit_sha1);
-	my $note = `git log --notes=mediawiki 2>/dev/null | grep "mediawiki_revision: " | sed -n 1p`;
-	$note =~ s/^\s+//; #left trim of note 
+	# Get note regarding last mediawiki revision
+	my $note = `git notes --ref=mediawiki show refs/mediawiki/$remotename/master 2>/dev/null`;
 	my @note_info = split(/ /, $note);
 
 	my $lastrevision_number;
-	if (!($note_info[0] eq "mediawiki_revision:")) {
+	if (!(defined($note_info[0]) && $note_info[0] eq "mediawiki_revision:")) {
 		print STDERR "No previous mediawiki revision found";
 		$lastrevision_number = 0;
 	} else {
@@ -111,7 +108,7 @@ sub get_last_remote_revision {
 
 sub literal_data {
 	my ($content) = @_;
-	print "data ", bytes::length($content), "\n", $content;
+	print STDOUT "data ", bytes::length($content), "\n", $content;
 }
 
 sub mw_capabilities {
@@ -152,7 +149,8 @@ sub mw_import {
 		list => 'allpages',
 		aplimit => 500,
 	});
-	if ($pages == undef) {
+	
+	if (!defined($pages)) {
 		print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
 		exit;
 	}
@@ -203,7 +201,7 @@ sub mw_import {
 
 	# Creation of the fast-import stream
 	print STDERR "Fetching & writing export data...\n";
-	binmode STDOUT, ':binary';
+	#binmode STDOUT, ':binary';
 	$n = 0;
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
@@ -236,38 +234,38 @@ sub mw_import {
 
 		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
 
-		print "commit refs/mediawiki/$remotename/master\n";
-		print "mark :$n\n";
-		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
+		print STDOUT "commit refs/mediawiki/$remotename/master\n";
+		print STDOUT "mark :$n\n";
+		print STDOUT "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		literal_data(encode_utf8($comment));
 		# If it's not a clone, needs to know where to start from
 		if ($fetch_from != 1 && $n == 1) {
-			print "from refs/mediawiki/$remotename/master^0\n";
+			print STDOUT "from refs/mediawiki/$remotename/master^0\n";
 		}
-		print "M 644 inline $title.mw\n";
+		print STDOUT "M 644 inline $title.mw\n";
 		literal_data(encode_utf8($content));
-		print "\n\n";
+		print STDOUT "\n\n";
 
 
 		# mediawiki revision number in the git note
 		if ($fetch_from == 1 && $n == 1) {
-			print "reset refs/notes/mediawiki\n";
+			print STDOUT "reset refs/notes/mediawiki\n";
 		}
-		print "commit refs/notes/mediawiki\n";
-		print "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
+		print STDOUT "commit refs/notes/mediawiki\n";
+		print STDOUT "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
 		literal_data(encode_utf8("note added by git-mediawiki"));
 		if ($fetch_from != 1 && $n == 1) {
-			print "from refs/notes/mediawiki^0\n";
+			print STDOUT "from refs/notes/mediawiki^0\n";
 		}
-		print "N inline :$n\n";
+		print STDOUT "N inline :$n\n";
 		literal_data(encode_utf8("mediawiki_revision: " . $pagerevids->{revid}));
-		print "\n\n";
+		print STDOUT "\n\n";
 	}
 
 	if ($fetch_from == 1) {
 		if ($n != 0) {
-			print "reset $_[0]\n"; #$_[0] contains refs/heads/master
-			print "from :$n\n";
+			print STDOUT "reset $_[0]\n"; #$_[0] contains refs/heads/master
+			print STDOUT "from :$n\n";
 		} else {
 			print STDERR "You appear to have cloned an empty mediawiki\n";
 			#What do we have to do here ? If nothing is done, an error is thrown saying that
@@ -307,9 +305,9 @@ sub mw_push {
 			#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
 			$mw->edit( {
 				action => 'edit',
-				summary => $_[1], 
-				title => encode_utf8($title),
-				text => encode_utf8($file_content),
+				summary => $_[1],
+				title => $title,
+				text => $file_content,
 			});
 
 			print STDERR "Pushed file : $sha1 - $title\n";
@@ -338,7 +336,7 @@ sub mw_push {
 		my $message = "\"To prevent you from losing history, non-fast-forward updates were rejected \\n";
 		$message .= "Merge the remote changes (e.g. 'git pull') before pushing again. See the";
 		$message .= " 'Note about fast-forwards' section of 'git push --help' for details.\"";
-		print "error $_[0] $message\n";
+		print STDOUT "error $_[0] $message\n";
 	} elsif ($HEAD_sha1 ne $remoteorigin_sha1) {
 		# Get every commit in between HEAD and refs/remotes/origin/master,
 		# including HEAD and refs/remotes/origin/master
@@ -358,10 +356,10 @@ sub mw_push {
 			$parsed_sha1 = $commit_info_split[1];
 		}
 
-		print "ok $_[1]\n";
+		print STDOUT "ok $_[1]\n";
 
 		# Pulling from mediawiki after pushing in order to keep things synchronized
 		#exec("git pull >/dev/null");
 	}
-	print "\n";
+	print STDOUT "\n";
 }
