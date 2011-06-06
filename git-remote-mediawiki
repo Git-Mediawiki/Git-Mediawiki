@@ -287,10 +287,15 @@ sub mw_push {
 
 		my $sha1 = $blob_info_split[3];
 		my $complete_file_name = $blob_info_split[5];
+		
+		# If the filename contains "non conventional" characters (such as accents, quotes and stuff)
+		# <filename.mw> is surrounded by '"'
+		if (substr($complete_file_name,0,1) eq '"') {
+			$complete_file_name = substr($complete_file_name,1,length($complete_file_name)-2);
+		}
 
-		my @complete_file_name_split = split(/\./, $complete_file_name);
-		if ($complete_file_name_split[1] eq "mw"){
-			my $title = $complete_file_name_split[0];
+		if (substr($complete_file_name,-3) eq ".mw"){
+			my $title = substr($complete_file_name,0,-3);
 			$title =~ s/$slash_replacement/\//g;
 			my $file_content = `git cat-file -p $sha1`;
 			chomp($file_content);
