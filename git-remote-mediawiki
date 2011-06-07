@@ -39,7 +39,7 @@ while (1) {
 		} elsif ($cmd[0] eq "push") {
 			# Check the pattern <src>:<dst>
 			my @pushargs = split(/:/,$cmd[1]);
-			last unless ($pushargs[1] ne "" && $pushargs[2] eq "");
+			last unless ($pushargs[1] ne "" && !defined($pushargs[2]));
 			mw_push($pushargs[0],$pushargs[1]);
 		} else {
 			print STDERR "Unknown capability. Aborting...\n";
@@ -152,6 +152,7 @@ sub mw_import {
 	
 	if (!defined($pages)) {
 		print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
+		print STDERR "fatal: make sure '$url/api.php' is a valid page\n";
 		exit;
 	}
 
@@ -201,7 +202,8 @@ sub mw_import {
 
 	# Creation of the fast-import stream
 	print STDERR "Fetching & writing export data...\n";
-	#binmode STDOUT, ':binary';
+	
+	#binmode STDOUT, ':binary'; # Line from Jeff King that raises a warning. What is this line for ?
 	$n = 0;
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
@@ -268,7 +270,7 @@ sub mw_import {
 			print STDOUT "from :$n\n";
 		} else {
 			print STDERR "You appear to have cloned an empty mediawiki\n";
-			#What do we have to do here ? If nothing is done, an error is thrown saying that
+			#Something has to be done remote-helper side. If nothing is done, an error is thrown saying that
 			#HEAD is refering to unknown object 0000000000000000000
 		}
 	}
