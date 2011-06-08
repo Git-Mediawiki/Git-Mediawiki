@@ -234,13 +234,12 @@ sub mw_import {
 		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		$title =~ y/ /_/;
 		#$title = uri_escape($title); #It would be nice to use uri_escape to be cross compatible 
-		#on different file systems
+		#on different file systems handling accentuated characters differently
 		$title =~ s/\//$slash_replacement/g;
 		
 		my $content = $rev->{'*'};
 		# This \n is important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
-		# Note : it seems like there are still problems with this. To be investigated further
 		$content .= "\n"; 
 
 		print STDERR "$n/", scalar(@revisions), ": Revision #$pagerevids->{revid} of $title\n";
@@ -308,15 +307,17 @@ sub mw_push {
 			my $mw = MediaWiki::API->new();
 			$mw->{config}->{api_url} = "$url/api.php";
 
-			# log in to the wiki
-			#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+			# log in to the wiki : here should be added a way to push changes with an identity
+			#$mw->login( { lgname => 'login', lgpassword => 'passwd' } ) 
+			#|| die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+			
 			$mw->edit( {
 				action => 'edit',
 				summary => $_[1],
 				title => $title,
 				text => $file_content,
 			}, {
-				skip_encoding => 1
+				skip_encoding => 1 # Helps with names with accentuated characters
 			}) || die 'Fatal: Error ' . $mw->{error}->{code} . ' from mediwiki: ' . $mw->{error}->{details};
 
 			print STDERR "Pushed file : $sha1 - $title\n";
