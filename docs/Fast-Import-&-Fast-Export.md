@@ -1,4 +1,4 @@
-Note : this page completes information from [Remote-Helpers]
+Note : this page completes information from [[Remote-Helpers]]
 
 The format of data exchanged between mediawiki is the fast-import / fast-export format of git.
 
