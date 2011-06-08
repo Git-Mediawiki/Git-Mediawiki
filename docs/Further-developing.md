@@ -24,6 +24,7 @@ In mediawiki one can upload and download images, videos, archives, etc to wiki p
 ## Renaming and deleting files
 The behaviour here is weird because of the way mediawiki behaves with this kind of actions. 
 ### Renaming files
-[Put info]
+* Not investigated. Mediawiki behaves in its own way with file renaming and should be investigated further.
 ### Deleting files
-* Import deleted file signals from mediawiki : if during the mediawiki API call...
+* Import deleted file signals from mediawiki : if during the mediawiki API call for pages (git pull), a page is not found, a 'delete' info should be written in the fast-import stream. 
+* Export deleted file signals to mediawiki : this is trickier because of the rights required to remove a file. With git diff --raw, the status of a file ([M]odified, [D]eleted ...) can be get. If it's 'D', send a remove query to mediawiki
