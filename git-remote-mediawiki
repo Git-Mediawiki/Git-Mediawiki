@@ -294,9 +294,11 @@ sub mw_push {
 		if (substr($complete_file_name,-3) eq ".mw"){
 			my $title = substr($complete_file_name,0,-3);
 			$title =~ s/$slash_replacement/\//g;
-			my $file_content = `git cat-file -p $sha1`;
-			chomp($file_content);
 
+			open(my $git, "-|:encoding(UTF-8)", "git cat-file -p $sha1");
+			my $file_content = <$git>;
+			close($git);
+			
 			my $mw = MediaWiki::API->new();
 			$mw->{config}->{api_url} = "$url/api.php";
 
