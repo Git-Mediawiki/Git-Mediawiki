@@ -9,4 +9,4 @@ We need to store metadata, using git notes
 
 A tricky part : data encoding
 
-   * [[UTF-8 Encoding]]
+   * [[Data-encoding]]
