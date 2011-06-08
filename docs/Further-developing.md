@@ -22,7 +22,7 @@ See mail
 In mediawiki one can upload and download images, videos, archives, etc to wiki pages. The Mediawiki enables that thanks to [Mediawiki::API->dowload($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Eupload%28_$params_hash_%29) and [Mediawiki::API->download($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Edownload%28_$params_hash_%29).
 
 ## Renaming and deleting files
-The behaviour here is weird because of the way mediawiki behaves with this kind of actions. 
+Mediawiki has its own norms regarding these actions.
 
 ### Renaming files
 * Not investigated. Mediawiki behaves in its own way with file renaming and should be investigated further.
