@@ -16,7 +16,7 @@ Then, the first operation you should do is cloning the remote mediawiki. To do s
 
 If you don't want to clone the whole wiki, you can run the command
 
-`git clone mediawiki::http://yourwikiadress.com#One_page#One_other_page`
+`git clone mediawiki::http://yourwikiadress.com#A_page#Another_page`
 
 You can commit your changes as usual with the command
 
