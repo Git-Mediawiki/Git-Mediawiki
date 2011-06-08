@@ -4,10 +4,11 @@ use strict;
 use MediaWiki::API;
 use DateTime::Format::ISO8601;
 use Encode qw(encode_utf8);
+use URI::Escape;
 use warnings;
 
 # Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
-my $slash_replacement = "<slash>";
+my $slash_replacement = "%2F";
 
 my $remotename = $ARGV[0];
 my $url = $ARGV[1];
@@ -168,7 +169,7 @@ sub mw_import {
 	foreach my $page (@$pages) {
 		my $id = $page->{pageid};
 
-		print STDERR "$n/", scalar(@$pages), ": ". encode_utf8($page->{title})."\n";
+		print STDERR "$n/", scalar(@$pages), ": ". $page->{title}."\n";
 		$n++;
 
 		my $query = {
@@ -224,7 +225,7 @@ sub mw_import {
 		my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
 
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
-		my $title = encode_utf8($result->{query}->{pages}->{$pagerevids->{pageid}}->{title});
+		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		my $content = $rev->{'*'};
 		# This \n is important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
@@ -232,9 +233,10 @@ sub mw_import {
 		$content .= "\n"; 
 		
 		$title =~ y/ /_/;
+		$title = uri_escape($title);
 		$title =~ s/\//$slash_replacement/g;
 
-		print STDERR "$n/", scalar(@revisions), ": Revision n°$pagerevids->{revid} of $title\n";
+		print STDERR "$n/", scalar(@revisions), ": Revision #$pagerevids->{revid} of $title\n";
 
 		print STDOUT "commit refs/mediawiki/$remotename/master\n";
 		print STDOUT "mark :$n\n";
@@ -318,20 +320,12 @@ sub mw_push {
 		}
 	}
 	
-	# Get sha1 of commit pointed by local HEAD
-	# Get sha1 of commit pointed by remotes/origin/master
-	# If they are equal : "Already up to date"
-	# Else
-		# For each commit in between those two, including the one pointed by HEAD and in chronological order
-			# Get files related to this commit
-			# Push this file
-		# End for each
-	# endif
-
 	my $last_local_revid = get_last_local_revision();
 	my $last_remote_revid = get_last_remote_revision();
 
+	# Get sha1 of commit pointed by local HEAD
 	my $HEAD_sha1 = `git rev-parse $_[0] 2>/dev/null`; chomp($HEAD_sha1);
+	# Get sha1 of commit pointed by remotes/origin/master
 	my $remoteorigin_sha1 = `git rev-parse refs/remotes/origin/master 2>/dev/null`; chomp($remoteorigin_sha1);
 
 	if ($last_local_revid < $last_remote_revid){
@@ -339,6 +333,7 @@ sub mw_push {
 		$message .= "Merge the remote changes (e.g. 'git pull') before pushing again. See the";
 		$message .= " 'Note about fast-forwards' section of 'git push --help' for details.\"";
 		print STDOUT "error $_[0] $message\n";
+		print STDOUT "\n";
 	} elsif ($HEAD_sha1 ne $remoteorigin_sha1) {
 		# Get every commit in between HEAD and refs/remotes/origin/master,
 		# including HEAD and refs/remotes/origin/master
@@ -353,15 +348,18 @@ sub mw_push {
 			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
 			chomp($commit_msg);
 			foreach my $blob_info (@blob_info_list) {
+				# Push every blob
 				push_file($blob_info, $commit_msg);
 			}		
 			$parsed_sha1 = $commit_info_split[1];
 		}
 
 		print STDOUT "ok $_[1]\n";
-
+		print STDOUT "\n";
+		
 		# Pulling from mediawiki after pushing in order to keep things synchronized
 		#exec("git pull >/dev/null");
+	} else {
+		print STDOUT "\n";
 	}
-	print STDOUT "\n";
 }
