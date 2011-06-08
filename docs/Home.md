@@ -21,4 +21,5 @@ Do not hesitate to contact us if you have any questions about the project.
    * [[Remote helpers]]
    * [[Fast import & Fast export]]
    * Storing metadata : [[Git notes]]
+   * [[Data-encoding]]
 * [[Further Developing]]
