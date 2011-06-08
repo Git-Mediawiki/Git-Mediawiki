@@ -6,3 +6,7 @@ The use of remote helpers is the most important choice of our implementation as 
 We need to store metadata, using git notes
 
    * [[Git notes]]
+
+A tricky part : data encoding
+
+   * [[UTF-8 Encoding]]
