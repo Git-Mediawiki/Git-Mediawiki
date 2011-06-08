@@ -17,7 +17,7 @@ This part is for the most part an edit query of the mediawiki API. Because again
 
 ![Export Flow Chart](http://nikaesj.free.fr/git_mediawiki/export.jpg)
 
-The conflict verification part is explained in the [[Sandbox for further developing]]
+The conflict verification part is explained in the [[Further developing]] page
 
 ## References
 
