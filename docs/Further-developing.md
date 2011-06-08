@@ -19,7 +19,7 @@ Combining Partial clones and login possibilities, it could be also nice to login
 See mail
 
 ## Sending attached files to wiki pages
-In mediawiki one can upload and download images, videos, archives, etc to wiki pages. The Mediawiki enbales that thanks to [Mediawiki::API->dowload($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Eupload%28_$params_hash_%29) and [Mediawiki::API->download($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Edownload%28_$params_hash_%29).
+In mediawiki one can upload and download images, videos, archives, etc to wiki pages. The Mediawiki enables that thanks to [Mediawiki::API->dowload($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Eupload%28_$params_hash_%29) and [Mediawiki::API->download($params_hash)](http://search.cpan.org/~exobuzz/MediaWiki-API-0.24/lib/MediaWiki/API.pm#MediaWiki::API-%3Edownload%28_$params_hash_%29).
 
 
 
