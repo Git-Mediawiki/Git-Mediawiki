@@ -15,6 +15,9 @@ Prints a list of refs for the repository. In our case, mediawiki has no reposito
 
 `@refs/heads/master HEAD`
 
+Revisions are imported to the private namespace refs/mediawiki/$remotename/ by the helper and fetched into refs/remotes/$remotename later by fetch.
+
+
 ###Option
 
 Allows different options such as 'Verbosity' and 'Progress' to be set up.
