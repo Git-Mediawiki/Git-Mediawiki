@@ -14,4 +14,20 @@ Then, the first operation you should do is cloning the remote mediawiki. To do s
 
 `git clone mediawiki::http://yourwikiadress.com`
 
-From now on, you can use your traditional pull, push, add, commit... and your favorite IDE to work on your wiki pages
+If you don't want to clone the whole wiki, you can run the command
+
+`git clone mediawiki::http://yourwikiadress.com|One_page|One_other_page`
+
+You can commit your changes as usual with the command
+
+`git commit`
+
+You can pull the last revision from mediawiki with the command 
+
+`git pull --rebase`
+
+You can push the changes you commited as usual with the command
+
+`git push`
+
+Knowing those commands, you can now edit your wiki with your favorite text editor !
