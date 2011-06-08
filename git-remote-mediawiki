@@ -104,6 +104,14 @@ sub get_last_remote_revision {
 	return $max_rev_num;
 }
 
+sub run_git {
+	open(my $git, "-|:encoding(UTF-8)", $_[0]);
+	my $res = do { local $/; <$git> };
+	close($git);
+
+	return $res;
+}
+
 sub literal_data {
 	my ($content) = @_;
 	print STDOUT "data ", bytes::length($content), "\n", $content;
@@ -295,9 +303,7 @@ sub mw_push {
 			my $title = substr($complete_file_name,0,-3);
 			$title =~ s/$slash_replacement/\//g;
 
-			open(my $git, "-|:encoding(UTF-8)", "git cat-file -p $sha1");
-			my $file_content = <$git>;
-			close($git);
+			my $file_content = run_git("git cat-file -p $sha1");
 			
 			my $mw = MediaWiki::API->new();
 			$mw->{config}->{api_url} = "$url/api.php";
@@ -340,7 +346,8 @@ sub mw_push {
 			my @commit_info_split = split(/ |\n/, $commit_info);
 			# $commit_info_split[0] is the sha1 of the commit itself
 			# $commit_info_split[1] is the sha1 of its direct child
-			my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
+			#my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
+			my $blob_infos = run_git("git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]");
 			my @blob_info_list = split(/\n/, $blob_infos);
 			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
 			chomp($commit_msg);
