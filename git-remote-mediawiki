@@ -1,8 +1,9 @@
 #! /usr/bin/perl
 
+use strict;
 use MediaWiki::API;
 use DateTime::Format::ISO8601;
-use encoding utf8;
+use encoding 'utf8';
 use URI::Escape;
 use warnings;
 
@@ -229,15 +230,18 @@ sub mw_import {
 		my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
 
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
+		
 		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
+		$title =~ y/ /_/;
+		#$title = uri_escape($title); #It would be nice to use uri_escape to be cross compatible 
+		#on different file systems
+		$title =~ s/\//$slash_replacement/g;
+		
 		my $content = $rev->{'*'};
 		# This \n is important. If it's not added, a conflict is going to happen if you change
 		# the last line of a file, push it and then pull it back from mediawiki.
 		# Note : it seems like there are still problems with this. To be investigated further
 		$content .= "\n"; 
-		
-		$title =~ y/ /_/;
-		$title =~ s/\//$slash_replacement/g;
 
 		print STDERR "$n/", scalar(@revisions), ": Revision #$pagerevids->{revid} of $title\n";
 
@@ -286,19 +290,15 @@ sub mw_push {
 
 	sub push_file {
 		#$_[0] contains a string in this format : 
-		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.mw>
+		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>\0<filename.mw>\0
 		#$_[1] contains the title of the commit message (the only phrase kept in the revision message)
-		my @blob_info_split = split(/ |\t/, $_[0]);
+		my @blob_info_split = split(/ |\t|\0/, $_[0]);
 
 		my $sha1 = $blob_info_split[3];
 		my $complete_file_name = $blob_info_split[5];
+		# complete_file_name = uri_unescape($complete_file_name); # If we use the uri escape before
+		# we should unescape here, before anything
 		
-		# If the filename contains "non conventional" characters (such as accents, quotes and stuff)
-		# <filename.mw> is surrounded by '"'
-		if (substr($complete_file_name,0,1) eq '"') {
-			$complete_file_name = substr($complete_file_name,1,length($complete_file_name)-2);
-		}
-
 		if (substr($complete_file_name,-3) eq ".mw"){
 			my $title = substr($complete_file_name,0,-3);
 			$title =~ s/$slash_replacement/\//g;
@@ -315,7 +315,9 @@ sub mw_push {
 				summary => $_[1],
 				title => $title,
 				text => $file_content,
-			});
+			}, {
+				skip_encoding => 1
+			}) || die 'Fatal: Error ' . $mw->{error}->{code} . ' from mediwiki: ' . $mw->{error}->{details};
 
 			print STDERR "Pushed file : $sha1 - $title\n";
 		} else {
@@ -346,8 +348,7 @@ sub mw_push {
 			my @commit_info_split = split(/ |\n/, $commit_info);
 			# $commit_info_split[0] is the sha1 of the commit itself
 			# $commit_info_split[1] is the sha1 of its direct child
-			#my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
-			my $blob_infos = run_git("git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]");
+			my $blob_infos = run_git("git diff --raw --abbrev=40 -z $commit_info_split[0] $commit_info_split[1]");
 			my @blob_info_list = split(/\n/, $blob_infos);
 			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
 			chomp($commit_msg);
