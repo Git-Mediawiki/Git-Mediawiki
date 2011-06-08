@@ -12,9 +12,11 @@ Here is the flow-chart of this part
 
 ## Git -> Mediawiki
 
-This part is fully
+This part is for the most part an edit query of the mediawiki API. Because again, a flow chart is worth a thousand words, here is the flow chart for this part
 
+![Export Flow Chart](http://nikaesj.free.fr/git_mediawiki/export.jpg)
 
+The conflict verification is explained in the [[Sandbox for Further Developping]]
 
 ## References
 
