@@ -79,6 +79,8 @@ Otherwise, for each commit between remotes/origin/master and HEAD, catch every b
 
 > We need to add conflict support if files have been changed on the mediawiki between the time the user typed git push and the file is pushed. Mediawiki should already send an exception or a message of some sort. We need to catch it and handle it.
 
+Once done, an automatic git pull --rebase is executed to keep a clean and close to mediawiki history. Most of the merges done will be trivial anyway.
+
 ## Documentation 
 
 [Man page of git remote-helpers](http://www.kernel.org/pub/software/scm/git/docs/git-remote-helpers.html)
