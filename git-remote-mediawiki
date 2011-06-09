@@ -11,7 +11,9 @@ use warnings;
 my $slash_replacement = "%2F";
 
 my $remotename = $ARGV[0];
-my $url = $ARGV[1];
+my @pages_titles = split(/##/,$ARGV[1]);
+my $url = shift (@pages_titles);
+
 
 print STDERR "$url\n";
 
@@ -54,6 +56,43 @@ while (1) {
 }
 
 ########################## Functions ##############################
+sub get_pages{
+	my $mediawiki = MediaWiki::API->new;
+	$mediawiki->{config}->{api_url} = "$url/api.php";
+
+	my $pages;
+	if (!defined(@_)){
+		$pages = $mediawiki->list({
+			action => 'query',
+			list => 'allpages',
+			aplimit => 500,
+		});
+		if (!defined($pages)) {
+			print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
+			print STDERR "fatal: make sure '$url/api.php' is a valid page\n";
+			exit 1;
+		}
+		return @$pages;
+	} else {
+		#the list of titles should follow the pattern 'page1|page2|...'
+		my $titles = "";
+		foreach my $title (@pages_titles){
+			$titles.="$title|";
+		}
+		#supress the last | that is add in the foreach
+		chop($titles);
+
+		$pages = $mediawiki->api({
+			action => 'query',
+			titles => $titles,
+		});
+		if (!defined($pages)) {
+			print STDERR "fatal: None of the pages exist \n";
+			exit 1;
+		}
+		return values (%{$pages->{query}->{pages}});
+	}
+}
 
 sub get_last_local_revision {
 	# Get note regarding last mediawiki revision
@@ -77,17 +116,12 @@ sub get_last_remote_revision {
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
-	my $pages = $mediawiki->list({
-		action => 'query',
-		list => 'allpages',
-		aplimit => 500,
-	});
+	my @pages = get_pages(@pages_titles);
 
 	my $max_rev_num = 0;
 
-	foreach my $page (@$pages) {
+	foreach my $page (@pages) {
 		my $id = $page->{pageid};
-
 
 		my $query = {
 			action => 'query',
@@ -139,23 +173,15 @@ sub mw_option {
 }
 
 sub mw_import {
+
 	my @wiki_name = split(/:\/\//,$url);
 	my $wiki_name = $wiki_name[1];
+ 
 
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
-	my $pages = $mediawiki->list({
-		action => 'query',
-		list => 'allpages',
-		aplimit => 500,
-	});
-	
-	if (!defined($pages)) {
-		print STDERR "fatal: '$url' does not appear to be a mediawiki\n";
-		print STDERR "fatal: make sure '$url/api.php' is a valid page\n";
-		exit;
-	}
+	my @pages = get_pages(@pages_titles);
 
 	my @revisions;
 	print STDERR "Searching revisions...\n";
@@ -166,10 +192,10 @@ sub mw_import {
 		print STDERR ", fetching from here\n";
 	}
 	my $n = 1;
-	foreach my $page (@$pages) {
+	foreach my $page (@pages) {
 		my $id = $page->{pageid};
 
-		print STDERR "$n/", scalar(@$pages), ": ". $page->{title}."\n";
+		print STDERR "$n/", scalar(@pages), ": ". $page->{title}."\n";
 		$n++;
 
 		my $query = {
@@ -179,7 +205,7 @@ sub mw_import {
 			rvdir => 'newer',
 			rvstartid => $fetch_from,
 			rvlimit => 500,
-			pageids => $page->{pageid},
+			pageids => $id,
 		};
 
 		my $revnum = 0;
@@ -249,6 +275,8 @@ sub mw_import {
 		print STDOUT "M 644 inline $title.mw\n";
 		literal_data(encode_utf8($content));
 		print STDOUT "\n\n";
+
+
 
 
 		# mediawiki revision number in the git note
@@ -363,3 +391,4 @@ sub mw_push {
 		print STDOUT "\n";
 	}
 }
+
