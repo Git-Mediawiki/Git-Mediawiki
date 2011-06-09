@@ -246,8 +246,7 @@ sub mw_import {
 		$title =~ s/\//$slash_replacement/g;
 		
 		my $content = $rev->{'*'};
-		# This \n is important. If it's not added, a conflict is going to happen if you change
-		# the last line of a file, push it and then pull it back from mediawiki.
+		# This \n is important. This is due to mediawiki's way to handle end of files.
 		$content .= "\n"; 
 
 		print STDERR "$n/", scalar(@revisions), ": Revision #$pagerevids->{revid} of $title\n";
