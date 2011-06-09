@@ -244,7 +244,7 @@ sub mw_import {
 	print STDERR "Fetching & writing export data...\n";
 	
 	$n = 0;
-	$last_timestamp = 0; #Placeholer in case $rev->timestamp is undefined
+	my $last_timestamp = 0; #Placeholer in case $rev->timestamp is undefined
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
 		#fetch the content of the pages
@@ -262,7 +262,7 @@ sub mw_import {
 		$n++;
 		my $user = $rev->{user} || 'Anonymous';
 
-		if (!defined($rev->{timestamp}))
+		if (!defined($rev->{timestamp})) {
 			$last_timestamp++; 
 		} else {
 			$last_timestamp = $rev->{timestamp};
