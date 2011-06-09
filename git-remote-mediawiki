@@ -59,7 +59,7 @@ sub get_pages{
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
 	my $pages;
-	if (!defined(@_)){
+	if (!@pages_titles){
 		$pages = $mediawiki->list({
 			action => 'query',
 			list => 'allpages',
@@ -188,10 +188,8 @@ sub mw_option {
 }
 
 sub mw_import {
-
 	my @wiki_name = split(/:\/\//,$url);
 	my $wiki_name = $wiki_name[1];
- 
 
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
