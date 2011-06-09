@@ -3,7 +3,7 @@
 use strict;
 use MediaWiki::API;
 use DateTime::Format::ISO8601;
-use Encode qw(encode_utf8);
+use encoding 'utf8';
 use URI::Escape;
 use warnings;
 
@@ -15,15 +15,12 @@ my @pages_titles = split(/##/,$ARGV[1]);
 my $url = shift (@pages_titles);
 
 
-print STDERR "$url\n";
-
 # commands parser
 my $entry;
 my @cmd;
 while (1) {
 	$| = 1; #flush STDOUT
 	$entry = <STDIN>;
-	print STDERR $entry;
 	chomp($entry);
 	@cmd = split(/ /,$entry);
 	if (defined($cmd[0])) {
@@ -141,6 +138,23 @@ sub get_last_remote_revision {
 	return $max_rev_num;
 }
 
+sub run_git {
+	open(my $git, "-|:encoding(UTF-8)", $_[0]);
+	my $res = do { local $/; <$git> };
+	close($git);
+
+	return $res;
+}
+
+sub mediawiki_filter($) {
+	# Mediawiki does not allow blank space at the end of a page and ends with a single \n. 
+	# This function right trims a string and adds a \n at the end to follow this rule
+	my $string = shift;
+	$string =~ s/\s+$//;
+	return $string."\n";
+}
+			
+
 sub literal_data {
 	my ($content) = @_;
 	print STDOUT "data ", bytes::length($content), "\n", $content;
@@ -168,7 +182,7 @@ sub mw_list {
 }
 
 sub mw_option {
-	print STDERR "not yet implemented \n";
+	print STDERR "remote-helper capability option not yet implemented \n";
 	print STDOUT "unsupported\n";
 }
 
@@ -230,7 +244,6 @@ sub mw_import {
 	# Creation of the fast-import stream
 	print STDERR "Fetching & writing export data...\n";
 	
-	#binmode STDOUT, ':binary'; # Line from Jeff King that raises a warning. What is this line for ?
 	$n = 0;
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
@@ -251,29 +264,29 @@ sub mw_import {
 		my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
 
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
-		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
-		my $content = $rev->{'*'};
-		# This \n is important. If it's not added, a conflict is going to happen if you change
-		# the last line of a file, push it and then pull it back from mediawiki.
-		# Note : it seems like there are still problems with this. To be investigated further
-		$content .= "\n"; 
 		
+		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		$title =~ y/ /_/;
-		$title = uri_escape($title);
+		#$title = uri_escape($title); #It would be nice to use uri_escape to be cross compatible
+		#on different file systems handling accentuated characters differently
 		$title =~ s/\//$slash_replacement/g;
+		
+		my $content = $rev->{'*'};
+		# This \n is important. This is due to mediawiki's way to handle end of files.
+		$content .= "\n"; 
 
 		print STDERR "$n/", scalar(@revisions), ": Revision #$pagerevids->{revid} of $title\n";
 
 		print STDOUT "commit refs/mediawiki/$remotename/master\n";
 		print STDOUT "mark :$n\n";
 		print STDOUT "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
-		literal_data(encode_utf8($comment));
+		literal_data($comment);
 		# If it's not a clone, needs to know where to start from
 		if ($fetch_from != 1 && $n == 1) {
 			print STDOUT "from refs/mediawiki/$remotename/master^0\n";
 		}
 		print STDOUT "M 644 inline $title.mw\n";
-		literal_data(encode_utf8($content));
+		literal_data($content);
 		print STDOUT "\n\n";
 
 
@@ -285,12 +298,12 @@ sub mw_import {
 		}
 		print STDOUT "commit refs/notes/mediawiki\n";
 		print STDOUT "committer $user <$user\@$wiki_name> ", $dt->epoch, " +0000\n";
-		literal_data(encode_utf8("note added by git-mediawiki"));
+		literal_data("note added by git-mediawiki");
 		if ($fetch_from != 1 && $n == 1) {
 			print STDOUT "from refs/notes/mediawiki^0\n";
 		}
 		print STDOUT "N inline :$n\n";
-		literal_data(encode_utf8("mediawiki_revision: " . $pagerevids->{revid}));
+		literal_data("mediawiki_revision: " . $pagerevids->{revid});
 		print STDOUT "\n\n";
 	}
 
@@ -311,36 +324,36 @@ sub mw_push {
 
 	sub push_file {
 		#$_[0] contains a string in this format : 
-		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status> <filename.mw>
+		#:100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>\0<filename.mw>\0
 		#$_[1] contains the title of the commit message (the only phrase kept in the revision message)
-		my @blob_info_split = split(/ |\t/, $_[0]);
+		my @blob_info_split = split(/ |\t|\0/, $_[0]);
 
 		my $sha1 = $blob_info_split[3];
 		my $complete_file_name = $blob_info_split[5];
+		# complete_file_name = uri_unescape($complete_file_name); # If we use the uri escape before
+		# we should unescape here, before anything
 		
-		# If the filename contains "non conventional" characters (such as accents, quotes and stuff)
-		# <filename.mw> is surrounded by '"'
-		if (substr($complete_file_name,0,1) eq '"') {
-			$complete_file_name = substr($complete_file_name,1,length($complete_file_name)-2);
-		}
-
 		if (substr($complete_file_name,-3) eq ".mw"){
 			my $title = substr($complete_file_name,0,-3);
 			$title =~ s/$slash_replacement/\//g;
-			my $file_content = `git cat-file -p $sha1`;
-			chomp($file_content);
 
+			my $file_content = run_git("git cat-file -p $sha1");
+			
 			my $mw = MediaWiki::API->new();
 			$mw->{config}->{api_url} = "$url/api.php";
 
-			# log in to the wiki
-			#$mw->login( { lgname => 'ilapa', lgpassword => 'kiplaki' } ) || die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+			# log in to the wiki : here should be added a way to push changes with an identity
+			#$mw->login( { lgname => 'login', lgpassword => 'passwd' } ) 
+			#|| die $mw->{error}->{code} . ': ' . $mw->{error}->{details};
+			
 			$mw->edit( {
 				action => 'edit',
 				summary => $_[1],
 				title => $title,
-				text => $file_content,
-			});
+				text => mediawiki_filter($file_content),
+			}, {
+				skip_encoding => 1 # Helps with names with accentuated characters
+			}) || die 'Fatal: Error ' . $mw->{error}->{code} . ' from mediwiki: ' . $mw->{error}->{details};
 
 			print STDERR "Pushed file : $sha1 - $title\n";
 		} else {
@@ -367,13 +380,14 @@ sub mw_push {
 		# including HEAD and refs/remotes/origin/master
 		my $parsed_sha1 = $remoteorigin_sha1;
 		while ($parsed_sha1 ne $HEAD_sha1) {
-			my $commit_info =  `git rev-list --children $_[0] | grep -e "^$parsed_sha1"`;
-			my @commit_info_split = split(/ |\n/, $commit_info);
+			my @commit_info =  grep(/^$parsed_sha1/, `git rev-list --children $_[0]`);
+			my @commit_info_split = split(/ |\n/, $commit_info[0]);
 			# $commit_info_split[0] is the sha1 of the commit itself
 			# $commit_info_split[1] is the sha1 of its direct child
-			my $blob_infos = `git diff --raw --abbrev=40 $commit_info_split[0] $commit_info_split[1]`;
+			my $blob_infos = run_git("git diff --raw --abbrev=40 -z $commit_info_split[0] $commit_info_split[1]");
 			my @blob_info_list = split(/\n/, $blob_infos);
-			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
+			# Keep the first line of the commit message as mediawiki comment for the revision
+			my $commit_msg = (split(/\n/, `git show --pretty=format:"%s" $commit_info_split[1]`))[0];
 			chomp($commit_msg);
 			foreach my $blob_info (@blob_info_list) {
 				# Push every blob
@@ -386,7 +400,7 @@ sub mw_push {
 		print STDOUT "\n";
 		
 		# Pulling from mediawiki after pushing in order to keep things synchronized
-		#exec("git pull >/dev/null");
+		exec("git pull --rebase >/dev/null");
 	} else {
 		print STDOUT "\n";
 	}
