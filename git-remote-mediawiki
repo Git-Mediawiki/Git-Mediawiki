@@ -113,6 +113,15 @@ sub run_git {
 	return $res;
 }
 
+sub mediawiki_filter($) {
+	# Mediawiki does not allow blank space at the end of a page and ends with a single \n. 
+	# This function right trims a string and adds a \n at the end to follow this rule
+	my $string = shift;
+	$string =~ s/\s+$//;
+	return $string."\n";
+}
+			
+
 sub literal_data {
 	my ($content) = @_;
 	print STDOUT "data ", bytes::length($content), "\n", $content;
@@ -315,7 +324,7 @@ sub mw_push {
 				action => 'edit',
 				summary => $_[1],
 				title => $title,
-				text => $file_content,
+				text => mediawiki_filter($file_content),
 			}, {
 				skip_encoding => 1 # Helps with names with accentuated characters
 			}) || die 'Fatal: Error ' . $mw->{error}->{code} . ' from mediwiki: ' . $mw->{error}->{details};
