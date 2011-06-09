@@ -21,6 +21,8 @@ This part is for the most part an edit query of the mediawiki API. Because again
 
 The conflict verification part is explained in the [[Remote Helpers]] page
 
+Note : Mediawiki has a norm : every blank characters (spaces, \n) are removed before sent to the server when a file is edited. That implies that before the file is sent to mediawiki, a filter has to be applied to get rid of every blank character at the end of it.
+
 ## References
 
 1. [Man page of git fast-import](http://www.kernel.org/pub/software/scm/git/docs/git-fast-import.html)
