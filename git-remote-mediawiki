@@ -19,7 +19,6 @@ my @cmd;
 while (1) {
 	$| = 1; #flush STDOUT
 	$entry = <STDIN>;
-	print STDERR $entry;
 	chomp($entry);
 	@cmd = split(/ /,$entry);
 	if (defined($cmd[0])) {
@@ -149,7 +148,7 @@ sub mw_list {
 }
 
 sub mw_option {
-	print STDERR "not yet implemented \n";
+	print STDERR "remote-helper capability option not yet implemented \n";
 	print STDOUT "unsupported\n";
 }
 
@@ -242,7 +241,7 @@ sub mw_import {
 		
 		my $title = $result->{query}->{pages}->{$pagerevids->{pageid}}->{title};
 		$title =~ y/ /_/;
-		#$title = uri_escape($title); #It would be nice to use uri_escape to be cross compatible 
+		#$title = uri_escape($title); #It would be nice to use uri_escape to be cross compatible
 		#on different file systems handling accentuated characters differently
 		$title =~ s/\//$slash_replacement/g;
 		
@@ -354,13 +353,14 @@ sub mw_push {
 		# including HEAD and refs/remotes/origin/master
 		my $parsed_sha1 = $remoteorigin_sha1;
 		while ($parsed_sha1 ne $HEAD_sha1) {
-			my $commit_info =  `git rev-list --children $_[0] | grep -e "^$parsed_sha1"`;
-			my @commit_info_split = split(/ |\n/, $commit_info);
+			my @commit_info =  grep(/^$parsed_sha1/, `git rev-list --children $_[0]`);
+			my @commit_info_split = split(/ |\n/, $commit_info[0]);
 			# $commit_info_split[0] is the sha1 of the commit itself
 			# $commit_info_split[1] is the sha1 of its direct child
 			my $blob_infos = run_git("git diff --raw --abbrev=40 -z $commit_info_split[0] $commit_info_split[1]");
 			my @blob_info_list = split(/\n/, $blob_infos);
-			my $commit_msg = `git show --pretty=format:"%s" $commit_info_split[1] | sed -n 1p`;
+			# Keep the first line of the commit message as mediawiki comment for the revision
+			my $commit_msg = (split(/\n/, `git show --pretty=format:"%s" $commit_info_split[1]`))[0];
 			chomp($commit_msg);
 			foreach my $blob_info (@blob_info_list) {
 				# Push every blob
