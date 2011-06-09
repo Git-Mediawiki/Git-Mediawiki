@@ -11,6 +11,7 @@ use warnings;
 my $slash_replacement = "%2F";
 
 my $remotename = $ARGV[0];
+# Current syntax to fetch only a set of pages mediawiki::http://mediawikiurl##A_Page##Another_Page
 my @pages_titles = split(/##/,$ARGV[1]);
 my $url = shift (@pages_titles);
 
