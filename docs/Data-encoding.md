@@ -23,5 +23,4 @@ To get titles, a `git diff` command is used. If it is used without the '-z' para
 
 ## Further implementation regarding encoding
 
-* Mediawiki has a norm : every blank characters (spaces, \n) are removed before sent to the server when a file is edited. That implies that before the file is sent to mediawiki, a filter has to be applied to get rid of every blank character at the end of it.
 * Different file systems have different ways to handle non-iso characters in file names. That implies that every file should not have this type of characters in its name. To get rid of this, a smart use of uri_escape could be used. We ran into some problems since because of the utf8 general encoding of the file, uri_unescape is not the inverse of uri_escape.
