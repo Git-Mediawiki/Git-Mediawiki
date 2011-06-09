@@ -123,7 +123,7 @@ sub get_last_remote_revision {
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
-	my @pages = get_pages(@pages_titles);
+	my @pages = get_pages();
 
 	my $max_rev_num = 0;
 
@@ -183,7 +183,7 @@ sub mw_list {
 }
 
 sub mw_option {
-	print STDERR "remote-helper capability option not yet implemented \n";
+	print STDERR "remote-helper capability 'option' not yet implemented \n";
 	print STDOUT "unsupported\n";
 }
 
@@ -194,7 +194,7 @@ sub mw_import {
 	my $mediawiki = MediaWiki::API->new;
 	$mediawiki->{config}->{api_url} = "$url/api.php";
 
-	my @pages = get_pages(@pages_titles);
+	my @pages = get_pages();
 
 	my @revisions;
 	print STDERR "Searching revisions...\n";
@@ -244,6 +244,7 @@ sub mw_import {
 	print STDERR "Fetching & writing export data...\n";
 	
 	$n = 0;
+	$last_timestamp = 0; #Placeholer in case $rev->timestamp is undefined
 
 	foreach my $pagerevids (sort {$a->{revid} <=> $b->{revid}} @revisions) {
 		#fetch the content of the pages
@@ -260,7 +261,13 @@ sub mw_import {
 
 		$n++;
 		my $user = $rev->{user} || 'Anonymous';
-		my $dt = DateTime::Format::ISO8601->parse_datetime($rev->{timestamp});
+
+		if (!defined($rev->{timestamp}))
+			$last_timestamp++; 
+		} else {
+			$last_timestamp = $rev->{timestamp};
+		}
+		my $dt = DateTime::Format::ISO8601->parse_datetime($last_timestamp);
 
 		my $comment = defined $rev->{comment} ? $rev->{comment} : '*Empty MediaWiki Message*';
 		
@@ -404,4 +411,3 @@ sub mw_push {
 		print STDOUT "\n";
 	}
 }
-
