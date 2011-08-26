@@ -1,6 +1,6 @@
 ## Getting started with Git-Mediawiki
 
-You need to have git installed on your machine, see the [help with setup for windows] (http://help.github.com/win-set-up-git/), [mac](http://help.github.com/mac-set-up-git/) or [linux](http://help.github.com/linux-set-up-git/).
+You need to have Git installed on your machine, see the [help with setup for windows] (http://help.github.com/win-set-up-git/), [mac](http://help.github.com/mac-set-up-git/) or [linux](http://help.github.com/linux-set-up-git/).
 
 Dependencies: You need to have the following packages installed :
 
@@ -16,7 +16,7 @@ Then, the first operation you should do is cloning the remote mediawiki. To do s
 
 If you don't want to clone the whole wiki, you can run the command
 
-`git clone mediawiki::http://yourwikiadress.com##A_page##Another_page`
+`git clone -c origin.pages='A_page Another_page' mediawiki::http://yourwikiadress.com`
 
 You can commit your changes as usual with the command
 
