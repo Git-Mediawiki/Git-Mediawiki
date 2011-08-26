@@ -33,6 +33,7 @@ It is strongly recommanded to run `git pull --rebase` after each `git push`.
 Knowing those commands, you can now edit your wiki with your favorite text editor!
 
 ## Partial import of a Wiki
+### Limit the pages to be imported
 
 If you don't want to clone the whole wiki, you can import only some pages with:
 
@@ -41,6 +42,18 @@ If you don't want to clone the whole wiki, you can import only some pages with:
 and/or select the content of MediaWiki Categories with:
 
     git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com
+
+### Shallow imports
+
+It is also possible to import only the last revision of a wiki. This is done using the `remote.origin.shallow` configuration variable. To set it during a clone, use:
+
+    git -c remote.origin.shallow=true clone mediawiki::http://example.com/wiki/
+
+Alternatively, you may let clone write the value to the `.git/config` file to have further `git fetch` import only the last revision of each page too with
+
+    git clone -c remote.origin.shallow=true mediawiki::http://example.com/wiki/
+
+(i.e. `-c` option used after `clone` in the command)
 
 ## Authentication
 
