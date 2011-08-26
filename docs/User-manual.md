@@ -14,11 +14,15 @@ Then, the first operation you should do is cloning the remote mediawiki. To do s
 
 `git clone mediawiki::http://yourwikiadress.com`
 
-If you don't want to clone the whole wiki, you can run the command
+If you don't want to clone the whole wiki, you can import only some pages with:
 
-`git clone -c origin.pages='A_page Another_page' mediawiki::http://yourwikiadress.com`
+`git clone -c remote.origin.pages='A_page Another_page' mediawiki::http://yourwikiadress.com`
 
-You can commit your changes as usual with the command
+and/or select the content of MediaWiki Categories with:
+
+`git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com`
+
+You can commit your changes locally as usual with the command
 
 `git commit`
 
