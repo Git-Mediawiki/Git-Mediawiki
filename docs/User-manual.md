@@ -8,7 +8,7 @@ Dependencies: You need to have the following packages installed :
 
 > libdatetime-format-iso8601-perl
 
-Available on common repositories.
+Available on common repositories. The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from https://github.com/git/git/tree/pu/contrib/mw-to-git if needed. You need to have the script `git-remote-mediawiki` in your PATH to use it.
 
 ## Getting started with Git-Mediawiki
 
