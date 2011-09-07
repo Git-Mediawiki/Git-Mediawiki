@@ -13,10 +13,12 @@ Since utf8 is the norm, the real character that raises a problem is '/'. It need
 
 ## Git -> Mediawiki
 
-The data that need to be send to mediawiki are stored in git blobs. To get that data, the command `git cat-file -p` is used. Consequently, further encoding is needed here
->	open(my $git, "-|:encoding(UTF-8)", <command>);
->	my $res = do { local $/; <$git> };
->	close($git);
+The data that need to be send to mediawiki are stored in git blobs. To get that data, the command `git cat-file blob <sha1>` is used. Consequently, further encoding is needed here
+
+	open(my $git, "-|:encoding(UTF-8)", <command>);
+	my $res = do { local $/; <$git> };
+	close($git);
+
 This helps encoding in-file data. 
 
 To get titles, a `git diff` command is used. If it is used without the '-z' parameter, non-iso characters are weirly encoded with \\###\\### type of characters. Furthermore, the mediawiki API needs to be told that everything we are sending to it is already utf-8 encoded, requiring us to add the option `skip_encoding => 1` in the mediawiki edit call.
