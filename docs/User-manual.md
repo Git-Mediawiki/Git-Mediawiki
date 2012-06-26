@@ -4,7 +4,7 @@ You need to have Git installed on your machine, see the [help with setup for win
 
 Dependencies: You need to have the following packages installed :
 
-> libmediawiki-api-perl
+> libmediawiki-api-perl (recent version. Version 0.39 works. Version 0.34 won't work with mediafiles)
 
 > libdatetime-format-iso8601-perl
 
