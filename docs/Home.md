@@ -19,6 +19,7 @@ Do not hesitate to contact us if you have any questions about the project.
 ## Links
 
 * [[User manual]]
+* [Bug tracking](https://github.com/moy/Git-Mediawiki/issues)
 * [[Implementation documentation]]
    * [[Remote helpers]]
    * [[Fast import & Fast export]]
