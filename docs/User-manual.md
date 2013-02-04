@@ -8,7 +8,13 @@ Dependencies: You need to have the following packages installed :
 
 > libdatetime-format-iso8601-perl
 
-Available on common repositories. The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed. You need to have the script `git-remote-mediawiki` in your PATH (and it needs to be executable) to use it. Alternatively, you may install it in Git's exec path (run `git --exec-path` to find out where it is).
+Available on common repositories.
+
+To access HTTPS wikis, you may also need
+
+> perl-lwp-protocol-https
+
+The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed. You need to have the script `git-remote-mediawiki` in your PATH (and it needs to be executable) to use it. Alternatively, you may install it in Git's exec path (run `git --exec-path` to find out where it is).
 
 ## Getting started with Git-Mediawiki
 
