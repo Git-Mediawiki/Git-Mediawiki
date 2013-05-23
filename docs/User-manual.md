@@ -85,3 +85,18 @@ While this is convenient, this comes with a drawback: your view of history is th
 By default, git-remote-mediawiki will list new revisions for each wiki page (`mediawiki.<name>.fetchStrategy` set to `by_page`). This is the most efficient method when cloning a small subset of a very active wiki. On the other hand, fetching from a wiki with little activity but many pages is long (the tool has to query every page even to say "Everything up to date").
 
 One can set `mediawiki.<name>.fetchStrategy` to `by_rev`. Then, git-remote-mediawiki will query the whole wiki for new revisions, and will filter-out revisions that should not be fetched because they do not touch tracked pages. In this case, for example, fetching from an up-to-date wiki is done in constant time (not O(number of pages)).
+
+## Issues with SSL, self-signed or unrecognized certificates
+
+By default, git-remote-mediawiki will verify SSL certificate with recent versions of libwww-perl (but not with older versions, for which the library does not do it by default).
+
+If your wiki uses a self-signed certificate, git-remote-mediawiki won't be able to connect to it. There are several solutions:
+
+* The insecure way: disable SSL verification:
+
+        PERL_LWP_SSL_VERIFY_HOSTNAME=0 git pull
+     
+* The more secure way: download, install, and trust the certificate. This won't give you 100% guarantee that the certificate is correct, but if an attacker tries to spoof the hostname after you've downloaded the certificate, you should notice it:
+
+        echo | openssl s_client -showcerts -connect ensiwiki.ensimag.fr:443 > certs.pem
+        HTTPS_CA_FILE=certs.pem git pull
