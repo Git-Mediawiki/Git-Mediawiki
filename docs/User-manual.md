@@ -82,9 +82,9 @@ While this is convenient, this comes with a drawback: your view of history is th
 
 ## Optimizing git fetch
 
-By default, git-remote-mediawiki will list new revisions for each wiki page (`mediawiki.<name>.fetchStrategy` set to `by_page`). This is the most efficient method when cloning a small subset of a very active wiki. On the other hand, fetching from a wiki with little activity but many pages is long (the tool has to query every page even to say "Everything up to date").
+By default, git-remote-mediawiki will list new revisions for each wiki page (`remote.<name>.fetchStrategy` set to `by_page`). This is the most efficient method when cloning a small subset of a very active wiki. On the other hand, fetching from a wiki with little activity but many pages is long (the tool has to query every page even to say "Everything up to date").
 
-One can set `mediawiki.<name>.fetchStrategy` to `by_rev`. Then, git-remote-mediawiki will query the whole wiki for new revisions, and will filter-out revisions that should not be fetched because they do not touch tracked pages. In this case, for example, fetching from an up-to-date wiki is done in constant time (not O(number of pages)).
+One can set `remote.<name>.fetchStrategy` to `by_rev`. Then, git-remote-mediawiki will query the whole wiki for new revisions, and will filter-out revisions that should not be fetched because they do not touch tracked pages. In this case, for example, fetching from an up-to-date wiki is done in constant time (not O(number of pages)).
 
 ## Issues with SSL, self-signed or unrecognized certificates
 
