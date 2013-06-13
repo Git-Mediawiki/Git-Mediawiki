@@ -98,5 +98,5 @@ If your wiki uses a self-signed certificate, git-remote-mediawiki won't be able 
      
 * The more secure way: download, install, and trust the certificate. This won't give you 100% guarantee that the certificate is correct, but if an attacker tries to spoof the hostname after you've downloaded the certificate, you should notice it:
 
-        echo | openssl s_client -showcerts -connect ensiwiki.ensimag.fr:443 > certs.pem
+        echo | openssl s_client -showcerts -connect wiki.example.com:443 > certs.pem
         HTTPS_CA_FILE=certs.pem git pull
