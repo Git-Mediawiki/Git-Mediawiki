@@ -76,6 +76,12 @@ Some wiki require login/password. You can specify a login and password using the
 
 If you wiki requires specifying a domain when logging in (if you use LDAP authentication for instance), then you can set `remote.origin.mwDomain` to the corresponding value.
 
+## Previewing changes
+
+(This is work in progress, you need to apply Benoit Person's patches to get this)
+
+You can preview a page without actually pushing it to the wiki using "git mw preview". Run "git mw help" for more information.
+
 ## Configuring and understanding how `push` works
 
 By default, when running `git push` to a MediaWiki, Git will update the metadata (remote reference, and the last imported MediaWiki revision stored in notes) during push to reflect the fact that your local revisions correspond to the exported MediaWiki revisions. This way, the next `git pull` will already know that the new revisions on MediaWiki come from your repository, and will not have to re-import them.
