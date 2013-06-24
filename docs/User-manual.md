@@ -70,6 +70,7 @@ Some wiki require login/password. You can specify a login and password using the
     git init new-repo
     chmod 600 .git/config # you're going to put a password there
                           # so don't keep it world-readable!
+    cd new-repo
     git remote add origin mediawiki::http://example.com/
     # edit .git/config and set the right variables in the [remote "origin"] section
     git fetch origin
