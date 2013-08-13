@@ -12,7 +12,7 @@ Github and ikiwiki propose solutions for git-based wikis. Our project wants to b
 
 ## Who are we ?
 
-We are four students : [Jérémie Nikaes](mailto:nikaesj@ensimag.fr), [Claire Fousse](mailto:foussec@ensimag.fr), [Arnaud Lacurie](mailto:lacuriea@ensimag.fr) and [David Amouyal](mailto:amouyald@ensimag.fr) from [Ensimag](http://www.ensimag.fr), an IT engineering school based in Grenoble - France. This is part of our end-year project for our second year of studies in this school. This project is mentored by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en) and [Sylvain Boulme](http://www-verimag.imag.fr/~boulme/), and developed with the help of the [git community](http://git.kernel.org/).
+Git-Mediawiki is essentially developed by [Ensimag](http://ensimag.grenoble-inp.fr/) students (see the logs for the detailed list of authors), supervised  by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en), with the help of the [git community](http://git.kernel.org/).
 
 Do not hesitate to contact us if you have any questions about the project.
 
