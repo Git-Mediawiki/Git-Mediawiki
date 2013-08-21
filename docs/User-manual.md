@@ -14,7 +14,7 @@ To access HTTPS wikis, you may also need
 
 > perl-lwp-protocol-https
 
-The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed.
+The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed. The recommended way to install Git-Mediawiki is to install both Git itself and Git-Mediawiki at the same time (so that you get the latest version of both). If you install Git-Mediawiki on top of an existing Git installation, you need Git >= 1.8.3, or use an old Git-Mediawiki version (the last commit which works with older versions is [commit edca4152](https://github.com/git/git/commit/edca4152560522a431a51fc0a06147fc680b5b18)).
 
 After configuring Git's tree (either ./configure --prefix=... or edit config.mak manually), run `make install` from the directory `contrib/mw-to-git`. This will install the script `git-remote-mediawiki` in your PATH. Alternatively, you may install it in manually by copying `git-remote-mediawiki` in Git's exec path (run `git --exec-path` to find out where it is) and make sure it's executable.
 
