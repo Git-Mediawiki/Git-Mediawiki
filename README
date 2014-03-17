@@ -2,7 +2,3 @@ Git-Mediawiki's source code is maintained within Git's own repository
 (in contrib/mw-to-git/).
 
 This repository is used only for Github's wiki and issue tracking.
-
-You may want to access early versions of Git-Mediawiki here:
-
-  https://github.com/Bibzball/Git-Mediawiki/
