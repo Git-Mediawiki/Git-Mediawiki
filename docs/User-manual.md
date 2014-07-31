@@ -14,8 +14,8 @@ On many distributions of Linux, these can be installed from packages `libmediawi
 On OS X, they can be installed using the CPAN installation tool:
 
 ```shell
-cpan MediaWiki::API
-cpan DateTime::Format::ISO8601
+sudo cpan MediaWiki::API
+sudo cpan DateTime::Format::ISO8601
 ```
 
 To access HTTPS wikis, you may also need
