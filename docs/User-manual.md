@@ -97,8 +97,10 @@ Some wiki require login/password. You can specify a login and password using the
                           # so don't keep it world-readable!
     cd new-repo
     git remote add origin mediawiki::http://example.com/
-    # edit .git/config and set the right variables in the [remote "origin"] section
-    git fetch origin
+    git config remote.origin.mwLogin 'UserName'
+    git config remote.origin.mwPassword 'PassWord'
+    git pull
+    git push
 
 If you wiki requires specifying a domain when logging in (if you use LDAP authentication for instance), then you can set `remote.origin.mwDomain` to the corresponding value.
 
