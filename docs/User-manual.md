@@ -20,6 +20,18 @@ sudo cpan MediaWiki::API
 sudo cpan DateTime::Format::ISO8601
 ```
 
+On FreeBSD, both dependencies are available from ports or packages:
+```shell
+# Through packages
+pkg install p5-MediaWiki-API p5-DateTime-Format-ISO8601
+
+# Through ports
+cd /usr/ports/devel/p5-DateTime-Format-ISO8601
+make install
+cd /usr/ports/devel/p5-MediaWiki-API
+make install
+```
+
 To access HTTPS wikis, you may also need
 
 * __LWP::Protocol::https__
