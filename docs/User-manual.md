@@ -128,6 +128,14 @@ By default, when running `git push` to a MediaWiki, Git will update the metadata
 
 While this is convenient, this comes with a drawback: your view of history is the one you've created from Git, and other users cloning the MediaWiki will have a slightly different view of history. If your push loses data (because MediaWiki cannot store a few things that Git can), you may not notice it, but other users will. Also, this means you have no chance to have the same commit identifiers as other cloners of the MediaWiki. An alternative is to set the `mediawiki.dumbPush` configuration variable to `true` (if needed, this can also be done on a per-remote basis with `remote.<name>.dumbPush`). If you do so, `git push` will not touch the MediaWiki metadata, and will ask you to reimport history after a successful push, typically with `git pull --rebase`. For those who know `git svn`: in this mode, `git push; git pull --rebase` is the equivalent of `git svn dcommit`.
 
+## Uploads (files and images)
+
+To include uploaded files, set the two config options `mediaimport` and `mediaexport`:
+~~~
+git config --bool remote.origin.mediaimport true
+git config --bool remote.origin.mediaexport true
+~~~
+
 ## Optimizing git fetch
 
 By default, git-remote-mediawiki will list new revisions for each wiki page (`remote.<name>.fetchStrategy` set to `by_page`). This is the most efficient method when cloning a small subset of a very active wiki. On the other hand, fetching from a wiki with little activity but many pages is long (the tool has to query every page even to say "Everything up to date").
