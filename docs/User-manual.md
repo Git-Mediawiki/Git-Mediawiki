@@ -1,6 +1,6 @@
 ## Installation
 
-You need to have Git installed on your machine. See the [help with setup for Windows] (http://help.github.com/win-set-up-git/), [Mac](http://help.github.com/mac-set-up-git/) or [Linux](http://help.github.com/linux-set-up-git/).
+You need to have Git installed on your machine. See the [help with setup for Windows](http://help.github.com/win-set-up-git/), [Mac](http://help.github.com/mac-set-up-git/) or [Linux](http://help.github.com/linux-set-up-git/).
 
 ### Dependencies
 
