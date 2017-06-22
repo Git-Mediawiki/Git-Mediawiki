@@ -71,6 +71,9 @@ sub connect_maybe {
 	$wiki_domain = Git::config("remote.${remote_name}.mwDomain");
 
 	$wiki = MediaWiki::API->new;
+
+	$wiki->{ua}->agent("git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent());
+
 	$wiki->{config}->{api_url} = "${remote_url}/api.php";
 	if ($wiki_login) {
 		my %credential = (
