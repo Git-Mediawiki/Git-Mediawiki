@@ -160,3 +160,20 @@ If your wiki uses a self-signed certificate, git-remote-mediawiki won't be able 
 
         echo | openssl s_client -showcerts -connect wiki.example.com:443 > certs.pem
         HTTPS_CA_FILE=certs.pem git pull
+
+## Cloning mediawiki repositories
+
+It may happen that you need to clone a repository that was created from a mediawiki instance. Just a regular clone will not be enough, because there is extra metadata in the repository that is not cloned by default. Furthermore, you will need to synchronize the configuration. For example, I had to do this to completely clone my repository:
+
+```
+git clone orig.example.com:mirror/wiki.example.com
+cd wiki.example.com
+git fetch origin refs/notes/*:refs/notes/*
+git fetch origin refs/mediawiki/*:refs/mediawiki/*
+git remote set-url origin mediawiki::http://wiki.example.com/
+git config remote.origin.fetchstrategy by_rev
+git config remote.origin.mediaimport true
+git pull
+```
+
+The configuration will, of course, vary according to your original configuration.
