@@ -1,0 +1,7 @@
+language: perl
+
+install:
+  - cd t && ./install-wiki.sh install
+
+script:
+  - make test
