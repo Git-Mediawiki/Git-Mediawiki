@@ -3,7 +3,7 @@
 test_description='Test the Git Mediawiki remote helper: queries w/ more than 500 results'
 
 . ./test-gitmw-lib.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 test_check_precond
 

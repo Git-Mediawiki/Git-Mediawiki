@@ -13,7 +13,7 @@
 test_description='Test the Git Mediawiki remote helper: git clone'
 
 . ./test-gitmw-lib.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 
 test_check_precond

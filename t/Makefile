@@ -10,9 +10,6 @@
 
 all: test
 
--include ../../../config.mak.autogen
--include ../../../config.mak
-
 T = $(wildcard t[0-9][0-9][0-9][0-9]-*.sh)
 
 .PHONY: help test clean all
