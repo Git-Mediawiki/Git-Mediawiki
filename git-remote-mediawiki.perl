@@ -68,6 +68,11 @@ my @tracked_namespaces = split(/[ \n]/, run_git("config --get-all remote.${remot
 for (@tracked_namespaces) { s/_/ /g; }
 chomp(@tracked_namespaces);
 
+# Use subdirectories for subpages
+my $use_subpage_dirs = run_git("config --get --bool remote.${remotename}.subpageDirs");
+chomp($use_subpage_dirs);
+$use_subpage_dirs = ($use_subpage_dirs eq 'true');
+
 # Import media files on pull
 my $import_media = run_git("config --get --bool remote.${remotename}.mediaimport");
 chomp($import_media);
@@ -724,6 +729,10 @@ sub fe_escape_path {
     $path =~ s/\\/\\\\/g;
     $path =~ s/"/\\"/g;
     $path =~ s/\n/\\n/g;
+    if ($use_subpage_dirs) {
+        $path =~ s/%2F((?:%2F)*)/"\/" . $1/ge;
+        $path =~ s/^(\/+)/"%2F" x length $1/ge;
+    }
     return qq("${path}");
 }
 
