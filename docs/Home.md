@@ -12,7 +12,7 @@ Github and ikiwiki propose solutions for git-based wikis. Our project wants to b
 
 ## Who are we ?
 
-Git-Mediawiki is essentially developed by [Ensimag](http://ensimag.grenoble-inp.fr/) students (see the logs for the detailed list of authors), supervised  by [Matthieu Moy](http://www-verimag.imag.fr/~moy/?lang=en), with the help of the [git community](http://git.kernel.org/).
+Git-Mediawiki was essentially developed by [Ensimag](http://ensimag.grenoble-inp.fr/) students (see the logs for the detailed list of authors), supervised  by [Matthieu Moy](https://matthieu-moy.fr/), with the help of the [git community](http://git.kernel.org/).
 
 Do not hesitate to contact us if you have any questions about the project.
 
