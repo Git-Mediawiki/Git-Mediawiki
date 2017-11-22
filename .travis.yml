@@ -10,4 +10,4 @@ install:
   - ln -s /usr/bin/git "$TRAVIS_BUILD_DIR/git/git"
 
 script:
-  - env GITPERLLIB="$TRAVIS_BUILD_DIR" make test
+  - env EMAIL="git-mediawiki@devnull.travis-ci.org" GITPERLLIB="$TRAVIS_BUILD_DIR" make test
