@@ -1,5 +1,9 @@
 language: perl
 
+env:
+  - MW_VERSION_MAJOR=1.21
+  - MW_VERSION_MAJOR=1.27
+
 before_install:
   - sudo apt-get update -q
   - sudo apt-get install -y lighttpd php5 php5-cgi php5-cli php5-curl php5-sqlite git libmediawiki-api-perl liblwp-protocol-https-perl libdatetime-format-iso8601-perl
