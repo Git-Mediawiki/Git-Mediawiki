@@ -55,12 +55,6 @@ die_with_status () {
 
 # Check the preconditions to run git-remote-mediawiki's tests
 test_check_precond () {
-	if ! test_have_prereq PERL
-	then
-		skip_all='skipping gateway git-mw tests, perl not available'
-		test_done
-	fi
-
 	GIT_EXEC_PATH=$(cd "$(dirname "$0")" && cd "../.." && pwd)
 	PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
 

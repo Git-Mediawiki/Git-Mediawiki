@@ -1,14 +1,13 @@
 language: perl
 
-env:
-  - GIT_ROOT_DIR="$TRAVIS_BUILD_DIR/git"
-
 before_install:
   - sudo apt-get update -q
   - sudo apt-get install -y lighttpd php5 php5-cgi php5-cli php5-curl php5-sqlite git libmediawiki-api-perl liblwp-protocol-https-perl libdatetime-format-iso8601-perl
 
 install:
   - (cd t && ./install-wiki.sh install)
+  - git clone --depth=1 https://github.com/git/git "$TRAVIS_BUILD_DIR/git"
+  - ln -s /usr/bin/git "$TRAVIS_BUILD_DIR/git/git"
 
 script:
-  - make test GIT_ROOT_DIR=$GIT_ROOT_DIR
+  - env GITPERLLIB="$TRAVIS_BUILD_DIR" make test
