@@ -1,8 +1,8 @@
 language: perl
 
 env:
-  - MW_VERSION_MAJOR=1.21
-  - MW_VERSION_MAJOR=1.27
+  - MW_VERSION_MAJOR=1.27 MW_VERSION_MINOR=4
+  - MW_VERSION_MAJOR=1.29 MW_VERSION_MINOR=2
 
 before_install:
   - sudo apt-get update -q
