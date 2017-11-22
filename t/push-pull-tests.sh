@@ -123,7 +123,7 @@ test_push_pull () {
 			git add Foo.mw &&
 			git commit -m "conflict created" &&
 			test_must_fail git pull &&
-			"$PERL_PATH" -pi -e "s/[<=>].*//g" Foo.mw &&
+			perl -pi -e "s/[<=>].*//g" Foo.mw &&
 			git commit -am "merge conflict solved" &&
 			git push
 		)
