@@ -5,7 +5,7 @@ between git and mediawiki, allowing git users to push and pull
 objects from mediawiki just as one would do with a classic git
 repository thanks to remote-helpers.
 
-**For more information, read the [User manual](docs/User-manual).**
+**For more information, read the [User manual](docs/User-manual.md).**
 
 ## Who are we ?
 
@@ -17,14 +17,14 @@ Note that Git-Mediawiki is currently looking for a new maintainer, see issue [#3
 
 ## Links
 
-* [User manual](docs/User-manual)
+* [User manual](docs/User-manual.md)
 * [Bug tracking](https://github.com/Git-Mediawiki/Git-Mediawiki/issues)
-* [Implementation documentation](docs/Implementation-documentation)
-   * [Remote helpers](docs/Remote-Helpers)
-   * [Fast import & Fast export](docs/Fast-Import-&-Fast-Export)
-   * Storing metadata : [Git notes](docs/Git-nodes)
-   * [Data-encoding](docs/Data-encoding)
-* [Further Developing](docs/Further-Developing)
+* [Implementation documentation](docs/Implementation-documentation.md)
+   * [Remote helpers](docs/Remote-Helpers.md)
+   * [Fast import & Fast export](docs/Fast-Import-&-Fast-Export.md)
+   * Storing metadata : [Git notes](docs/Git-notes.md)
+   * [Data-encoding](docs/Data-encoding.md)
+* [Further Developing](docs/Further-developing.md)
 
 ## Similar projects
 

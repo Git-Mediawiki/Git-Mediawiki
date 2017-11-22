@@ -1,4 +1,4 @@
-Note : this page completes information from [[Remote-Helpers]]
+Note : this page completes information from [Remote Helpers](Remote-Helpers.md)
 
 The format of data exchanged between mediawiki is the fast-import / fast-export format of git.
 
@@ -19,7 +19,7 @@ This part is for the most part an edit query of the mediawiki API. Because again
 
 ![Export Flow Chart](http://nikaesj.free.fr/git_mediawiki/export.jpg)
 
-The conflict verification part is explained in the [[Remote Helpers]] page
+The conflict verification part is explained in the [Remote Helpers](Remote-Helpers.md) page
 
 Note : Mediawiki has a norm : every blank characters (spaces, \n) are removed before sent to the server when a file is edited. That implies that before the file is sent to mediawiki, a filter has to be applied to get rid of every blank character at the end of it.
 

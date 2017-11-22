@@ -25,7 +25,7 @@ Prints 'unsupported' if we don't support it, sets the variable and prints 'ok' i
 
 ###Import
 
-Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. Using [[git notes]], it is possible to know which revision was the last imported from the mediawiki. If it's a git clone, the value is 0 and every revision is imported from the wiki. Otherwise, it only imports revisions that were created after the last one. Finally, it prints the fast-import stream with this format for each revision :
+Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. Using [git notes](Git-notes.md), it is possible to know which revision was the last imported from the mediawiki. If it's a git clone, the value is 0 and every revision is imported from the wiki. Otherwise, it only imports revisions that were created after the last one. Finally, it prints the fast-import stream with this format for each revision :
 
 This chunk handles the data part :
 
