@@ -108,9 +108,11 @@ $wiki_config = $wiki_config.'&config_wgMetaNamespace=MyWiki';
 $wiki_config = $wiki_config.'&config__AdminName='.$login;
 
 $wiki_config = $wiki_config.'&config__AdminPassword='.$pass;
-$wiki_config = $wiki_config.'&config__AdminPassword2='.$pass;
+$wiki_config = $wiki_config.'&config__AdminPassword2='.$pass; # 1.21
+$wiki_config = $wiki_config.'&config__AdminPasswordConfirm='.$pass; # 1.27
 
-$wiki_config = $wiki_config.'&wiki__configEmail=email%40email.org';
+$wiki_config = $wiki_config.'&wiki__configEmail=email%40email.org'; # 1.21
+$wiki_config = $wiki_config.'&config__AdminEmail=email%40email.org'; # 1.27
 $wiki_config = $wiki_config.'&config__SkipOptional=skip';
 submit('Name', $wiki_config);
 submit('Install');
