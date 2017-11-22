@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+use lib (split(/:/, $ENV{GITPERLLIB}));
+
 # Copyright (C) 2013
 #     Benoit Person <benoit.person@ensimag.imag.fr>
 #     Celestin Matte <celestin.matte@ensimag.imag.fr>

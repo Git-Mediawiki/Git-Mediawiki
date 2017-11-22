@@ -14,7 +14,7 @@
 test_description='Test git-mediawiki with special characters in filenames'
 
 . ./test-gitmw-lib.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 
 test_check_precond

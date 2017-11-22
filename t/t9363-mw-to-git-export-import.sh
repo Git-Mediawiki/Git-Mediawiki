@@ -14,7 +14,7 @@
 test_description='Test the Git Mediawiki remote helper: git push and git pull simple test cases'
 
 . ./test-gitmw-lib.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 
 test_check_precond
@@ -41,14 +41,14 @@ test_expect_success 'git push can upload media (File:) files' '
 		git add Foo.txt &&
 		git commit -m "add a text file" &&
 		git push &&
-		"$PERL_PATH" -e "print STDOUT \"binary content: \".chr(255);" >Foo.txt &&
+		perl -e "print STDOUT \"binary content: \".chr(255);" >Foo.txt &&
 		git add Foo.txt &&
 		git commit -m "add a text file with binary content" &&
 		git push
 	)
 '
 
-test_expect_success 'git clone works on previously created wiki with media files' '
+test_expect_failure 'git clone works on previously created wiki with media files' '
 	test_when_finished "rm -rf mw_dir mw_dir_clone" &&
 	git clone -c remote.origin.mediaimport=true \
 		mediawiki::'"$WIKI_URL"' mw_dir_clone &&
@@ -63,7 +63,7 @@ test_expect_success 'git push can upload media (File:) files containing valid UT
 	git clone mediawiki::'"$WIKI_URL"' mw_dir &&
 	(
 		cd mw_dir &&
-		"$PERL_PATH" -e "print STDOUT \"UTF-8 content: éèàéê€.\";" >Bar.txt &&
+		perl -e "print STDOUT \"UTF-8 content: éèàéê€.\";" >Bar.txt &&
 		git add Bar.txt &&
 		git commit -m "add a text file with UTF-8 content" &&
 		git push

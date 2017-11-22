@@ -15,7 +15,7 @@ test_description='Test the Git Mediawiki remote helper: git push and git pull si
 
 . ./test-gitmw-lib.sh
 . ./push-pull-tests.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 test_check_precond
 

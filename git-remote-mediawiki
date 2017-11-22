@@ -1,5 +1,7 @@
 #! /usr/bin/perl
 
+use lib (split(/:/, $ENV{GITPERLLIB}));
+
 # Copyright (C) 2011
 #     Jérémie Nikaes <jeremie.nikaes@ensimag.imag.fr>
 #     Arnaud Lacurie <arnaud.lacurie@ensimag.imag.fr>

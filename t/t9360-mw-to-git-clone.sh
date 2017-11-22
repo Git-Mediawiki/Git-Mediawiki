@@ -13,7 +13,7 @@
 test_description='Test the Git Mediawiki remote helper: git clone'
 
 . ./test-gitmw-lib.sh
-. $TEST_DIRECTORY/test-lib.sh
+. ./sharness/sharness.sh
 
 
 test_check_precond
@@ -32,7 +32,7 @@ test_expect_success 'Git clone creates the expected git log with one file' '
 '
 
 
-test_expect_success 'Git clone creates the expected git log with multiple files' '
+test_expect_failure 'Git clone creates the expected git log with multiple files' '
 	wiki_reset &&
 	wiki_editpage daddy "this is not important" false -s="this must be the same" &&
 	wiki_editpage daddy "neither is this" true -s="this must also be the same" &&
@@ -83,7 +83,7 @@ test_expect_success 'Git clone works with page added' '
 	wiki_delete_page bar
 '
 
-test_expect_success 'Git clone works with an edited page ' '
+test_expect_failure 'Git clone works with an edited page ' '
 	wiki_reset &&
 	wiki_editpage foo "this page will be edited" \
 		false -s "first edition of page foo"&&
@@ -120,7 +120,7 @@ test_expect_success 'Git clone works with several pages and some deleted ' '
 '
 
 
-test_expect_success 'Git clone works with one specific page cloned ' '
+test_expect_failure 'Git clone works with one specific page cloned ' '
 	wiki_reset &&
 	wiki_editpage foo "I will not be cloned" false &&
 	wiki_editpage bar "Do not clone me" false &&
