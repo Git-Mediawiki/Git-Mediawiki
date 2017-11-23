@@ -15,6 +15,9 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 	exit;
 }
 
+// Keep errors to a minimal, otherwise login fails
+error_reporting(E_ERROR | E_WARNING | E_PARSE);
+
 ## Uncomment this to disable output compression
 # $wgDisableOutputCompression = true;
 
