@@ -104,7 +104,6 @@ $wgUpgradeKey = "ddae7dc87cd0a645";
 
 ## Default skin: you can change the default skin. Use the internal symbolic
 ## names, ie 'standard', 'nostalgia', 'cologneblue', 'monobook', 'vector':
-wfLoadSkin( 'Vector' );
 $wgDefaultSkin = "vector";
 
 ## For attaching licensing metadata to pages, and displaying an
