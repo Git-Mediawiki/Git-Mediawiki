@@ -2,12 +2,12 @@ This project is using remote helpers to feature complete transparency to git use
 
 A few details are required for the different functionalities of the remote-helper
 
-##Function details
+## Function details
 
-###Capabilities
+### Capabilities
 Prints the list of capabilities of our remote helper. 
 
-###List
+### List
 
 Prints a list of refs for the repository. In our case, mediawiki has no repository refs. The list command prints
 
@@ -18,52 +18,43 @@ Prints a list of refs for the repository. In our case, mediawiki has no reposito
 Revisions are imported to the private namespace refs/mediawiki/$remotename/ by the helper and fetched into refs/remotes/$remotename later by fetch.
 
 
-###Option
+### Option
 
 Allows different options such as 'Verbosity' and 'Progress' to be set up.
 Prints 'unsupported' if we don't support it, sets the variable and prints 'ok' if we do.
 
-###Import
+### Import
 
 Import prints a fast-import stream of the mediawiki to the standard output. It is interfaced with the mediawiki API. Using [git notes](Git-notes.md), it is possible to know which revision was the last imported from the mediawiki. If it's a git clone, the value is 0 and every revision is imported from the wiki. Otherwise, it only imports revisions that were created after the last one. Finally, it prints the fast-import stream with this format for each revision :
 
 This chunk handles the data part :
 
-`commit refs/mediawiki/'$remotename'/master #Where $remotename is 'origin' by default`
-
-`mark :<int>`
-
-`commiter <user> <mail> <timestamp> +0000`
-
-`data <sizeofcomment>`
-
-`<comment>`
-
-`M 644 inline <title>.wiki`
-
-`data <sizeoffile>`
-
-`<content>`
+```
+commit refs/mediawiki/'$remotename'/master #Where $remotename is 'origin' by default
+mark :<int>
+committer <user> <mail> <timestamp> +0000
+data <sizeofcomment>
+<comment>
+M 644 inline <title>.wiki
+data <sizeoffile>
+<content>
+```
 
 Note that we need to use a secondary ref refs/mediawiki/origin/master otherwise it bugs out. We cannot write directly into refs/remotes/origin/master without errors being thrown. This ref is also a blessing as it always points to the last git note metadata, making things easier to know the last local revision.
 
 This part creates a note that contains our metadata : 
 
-`commit refs/notes/commits`
+```
+commit refs/notes/commits
+committer <user> <mail> <timestamp> +0000
+data <sizeofnotecomment>
+<notecomment> # In our case : note added by git-mediawiki
+N inline :<markabove>
+data <sizeofnotecontent>
+<notecontent> # In our case : mediawiki_revision: <revisionid>
+```
 
-`commiter <user> <mail> <timestamp> +0000`
-
-`data <sizeofnotecomment>`
-
-`<notecomment> # In our case : note added by git-mediawiki`
-
-`N inline :<markabove>`
-
-`data <sizeofnotecontent>`
-
-`<notecontent> # In our case : mediawiki_revision: <revisionid>`
-
-###Push
+### Push
 
 Thanks to git notes, it is possible to know the last local revision fetched. With the mediawiki API, it is also possible to know the last remote revision on the server. If the server is ahead from us, a fast forward error message is thrown.
 
