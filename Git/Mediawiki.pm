@@ -73,6 +73,7 @@ sub connect_maybe {
 	$wiki = MediaWiki::API->new;
 
 	$wiki->{ua}->agent("git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent());
+	$wiki->{ua}->conn_cache({total_capacity => undef});
 
 	$wiki->{config}->{api_url} = "${remote_url}/api.php";
 	if ($wiki_login) {
