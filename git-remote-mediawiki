@@ -1370,8 +1370,9 @@ sub get_mw_namespace_id {
 }
 
 sub get_mw_namespace_id_for_page {
-	my $namespace = shift;
-	if ($namespace =~ /^([^:]*):/) {
+	my $page = shift;
+	if ($page =~ /^([^:]*):/) {
+		my $namespace = $1;
 		return get_mw_namespace_id($namespace);
 	} else {
 		return;
