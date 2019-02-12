@@ -481,14 +481,18 @@ sub get_mw_mediafile_for_page_revision {
 	# If not defined it means there is no revision of the file for
 	# given timestamp.
 	if (defined($file->{imageinfo})) {
-		$mediafile{title} = $filename;
-
 		my $fileinfo = pop(@{$file->{imageinfo}});
-		$mediafile{timestamp} = $fileinfo->{timestamp};
 		# Mediawiki::API's download function doesn't support https URLs
 		# and can't download old versions of files.
-		print {*STDERR} "\tDownloading file $mediafile{title}, version $mediafile{timestamp}\n";
-		$mediafile{content} = download_mw_mediafile($fileinfo->{url});
+		print {*STDERR} "\tDownloading file $filename, version $fileinfo->{timestamp}\n";
+		my $content = download_mw_mediafile($fileinfo->{url});
+		if (defined($content)) {
+			$mediafile{content} = $content;
+			$mediafile{title} = $filename;
+			$mediafile{timestamp} = $fileinfo->{timestamp};
+		} else {
+			print {*STDERR} "\tFAILED downloading $fileinfo->{url}! Skipping!\n";
+		}
 	}
 	return %mediafile;
 }
@@ -514,7 +518,7 @@ sub download_mw_mediafile {
 		print {*STDERR} "Error downloading mediafile from :\n";
 		print {*STDERR} "URL: ${download_url}\n";
 		print {*STDERR} 'Server response: ' . $response->code . q{ } . $response->message . "\n";
-		exit 1;
+		return;
 	}
 }
 
