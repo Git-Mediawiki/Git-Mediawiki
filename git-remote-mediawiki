@@ -504,6 +504,12 @@ sub download_mw_mediafile {
 		# "Wide character in subroutine entry".
 		$response->decode();
 		return $response->content();
+	} elsif (($download_url !~ /^\Q$url\E/) and ($download_url =~ m{\Q$wiki_name\E/})) {
+		# We may have failed because the URL returned from the API
+		# is missing something (e.g. "user:password@"). Retry with a
+		# corresponding URL constructed from our original $url.
+		$download_url =~ s{.*?\Q$wiki_name\E/}{$url/};
+		return download_mw_mediafile($download_url);
 	} else {
 		print {*STDERR} "Error downloading mediafile from :\n";
 		print {*STDERR} "URL: ${download_url}\n";
