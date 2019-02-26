@@ -83,10 +83,29 @@ sub connect_maybe {
 			'password' => $wiki_password
 		);
 		Git::credential(\%credential);
-		my $request = {lgname => $credential{username},
-			       lgpassword => $credential{password},
-			       lgdomain => $wiki_domain};
-		if ($wiki->login($request)) {
+		my $query = {action => 'query',
+			     meta => 'tokens',
+			     type => 'login'};
+		my $ref = $wiki->api( $query );
+		my $token;
+		if ($ref) {
+		    $token = $ref->{query}->{tokens}->{logintoken};
+		} else {
+		    print {*STDERR} qq{Failed to retrieve CSRF token from Mediawiki site.\n};
+		    print {*STDERR} '(error ' .
+				      $wiki->{error}->{code} . ': ' .
+				      $wiki->{error}->{details} . ")\n";
+		    exit 1;
+		}
+
+                $query = {action => 'login',
+                          lgtoken => $token,
+                          lgname => $credential{username},
+                          lgpassword => $credential{password},
+                          lgdomain => $wiki_domain,
+                };
+                $ref = $wiki->api( $query );
+                if ($ref) {
 			Git::credential(\%credential, 'approve');
 			print {*STDERR} qq(Logged in mediawiki user "$credential{username}".\n);
 		} else {
