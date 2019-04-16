@@ -14,13 +14,13 @@ $VERSION = '0.01';
 
 require Exporter;
 
-@ISA = qw(Exporter);
+@ISA = qw(Exporter MediaWiki::API);
 
 @EXPORT = ();
 
 # Methods which can be called as standalone functions as well:
-@EXPORT_OK = qw(clean_filename smudge_filename connect_maybe
-				EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
+@EXPORT_OK = qw(clean_filename connect_maybe
+								EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
 }
 
 # Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
@@ -34,7 +34,12 @@ use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 
 sub SUFFIX {
-  return run_git("config --get --bool remote.${remotename}.fileextension") || ".mw"
+	my $self = shift;
+	if ( !$self->{suffix} ) {
+		my $configurable = "remote." . $self->{remote_name} . ".fileextension";
+		$self->{suffix} = run_git("config --get $configurable") || ".mw"
+	}
+	return $self->{suffix};
 }
 
 # usage: $out = run_git("command args");
@@ -68,12 +73,13 @@ sub clean_filename {
 }
 
 sub smudge_filename {
+	my $self = shift;
 	my $filename = shift;
 	$filename =~ s{/}{@{[SLASH_REPLACEMENT]}}g;
 	$filename =~ s/ /_/g;
 	# Decode forbidden characters encoded in clean_filename
 	$filename =~ s/_%_([0-9a-fA-F][0-9a-fA-F])/sprintf('%c', hex($1))/ge;
-	return substr($filename, 0, NAME_MAX-length(SUFFIX));
+	return substr($filename, 0, NAME_MAX-length($self->SUFFIX));
 }
 
 sub connect_maybe {
@@ -91,6 +97,8 @@ sub connect_maybe {
 	$wiki_domain = Git::config("remote.${remote_name}.mwDomain");
 
 	$wiki = MediaWiki::API->new;
+	bless $wiki;
+	$wiki->{remote_name} = $remote_name;
 
 	$wiki->{ua}->agent("git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent());
 	$wiki->{ua}->conn_cache({total_capacity => undef});

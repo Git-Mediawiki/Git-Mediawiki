@@ -16,8 +16,8 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 use strict;
 use MediaWiki::API;
 use Git;
-use Git::Mediawiki qw(clean_filename smudge_filename connect_maybe
-					EMPTY HTTP_CODE_OK);
+use Git::Mediawiki qw(clean_filename connect_maybe
+											EMPTY HTTP_CODE_OK);
 use DateTime::Format::ISO8601;
 use warnings;
 
@@ -767,7 +767,7 @@ sub import_file_revision {
 	}
 	if ($content ne DELETED_CONTENT) {
 		print {*STDOUT} 'M 644 inline ' .
-		    fe_escape_path("${title}" . Git::Mediawiki::SUFFIX) . "\n";
+		    fe_escape_path("${title}" . $mediawiki->SUFFIX) . "\n";
 		literal_data($content);
 		if (%mediafile) {
 			print {*STDOUT} 'M 644 inline '
@@ -776,7 +776,7 @@ sub import_file_revision {
 		}
 		print {*STDOUT} "\n\n";
 	} else {
-		print {*STDOUT} 'D ' . fe_escape_path("${title}" . Git::Mediawiki::SUFFIX) . "\n";
+		print {*STDOUT} 'D ' . fe_escape_path("${title}" . $mediawiki->SUFFIX) . "\n";
 	}
 
 	# mediawiki revision number in the git note
@@ -954,7 +954,7 @@ sub mw_import_revids {
 		my %commit;
 		$commit{author} = $rev->{user} || 'Anonymous';
 		$commit{comment} = $rev->{comment} || EMPTY_MESSAGE;
-		$commit{title} = smudge_filename($page_title);
+		$commit{title} = $mediawiki->smudge_filename($page_title);
 		$commit{mw_revision} = $rev->{revid};
 		$commit{content} = mediawiki_smudge($rev->{'*'});
 
