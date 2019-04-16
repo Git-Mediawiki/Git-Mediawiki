@@ -14,17 +14,14 @@ $VERSION = '0.01';
 
 require Exporter;
 
-@ISA = qw(Exporter);
+@ISA = qw(Exporter MediaWiki::API);
 
 @EXPORT = ();
 
 # Methods which can be called as standalone functions as well:
-@EXPORT_OK = qw(clean_filename smudge_filename connect_maybe
-				EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
+@EXPORT_OK = qw(connect_maybe
+								EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
 }
-
-# Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
-use constant SLASH_REPLACEMENT => '%2F';
 
 # Used to test for empty strings
 use constant EMPTY => q{};
@@ -33,9 +30,36 @@ use constant EMPTY => q{};
 use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 
+# Mediawiki filenames can contain forward slashes. This variable
+# decides by which pattern they should be replaced
+sub SLASH_REPLACEMENT {
+	my $self = shift;
+	if ( $self && !$self->{slashReplacment} ) {
+		($self->{slashReplacment}) = Git::config("mediawiki.slashReplacement") || '%2F';
+	}
+	return $self->{slashReplacment};
+}
+
+sub SUFFIX {
+	my $self = shift;
+	if ( !$self->{suffix} ) {
+		for(Git::config("mediawiki.fileExtension")) {
+			if ( substr( $_, 0, 1 ) eq '.' ) {
+				$_ = substr( $_, 1 );
+			}
+			$self->{suffix} = $_;
+		}
+		$self->{suffix} ||= "mw";
+
+	}
+	return $self->{suffix};
+}
+
 sub clean_filename {
+	my $self = shift;
 	my $filename = shift;
-	$filename =~ s{@{[SLASH_REPLACEMENT]}}{/}g;
+	my $sr = $self->SLASH_REPLACEMENT;
+	$filename =~ s{$sr}{/}g;
 	# [, ], |, {, and } are forbidden by MediaWiki, even URL-encoded.
 	# Do a variant of URL-encoding, i.e. looks like URL-encoding,
 	# but with _ added to prevent MediaWiki from thinking this is
@@ -48,12 +72,14 @@ sub clean_filename {
 }
 
 sub smudge_filename {
+	my $self = shift;
 	my $filename = shift;
-	$filename =~ s{/}{@{[SLASH_REPLACEMENT]}}g;
+	my $sr = $self->SLASH_REPLACEMENT;
+	$filename =~ s{/}{$sr}g;
 	$filename =~ s/ /_/g;
 	# Decode forbidden characters encoded in clean_filename
 	$filename =~ s/_%_([0-9a-fA-F][0-9a-fA-F])/sprintf('%c', hex($1))/ge;
-	return substr($filename, 0, NAME_MAX-length('.mw'));
+	return substr($filename, 0, NAME_MAX-length($self->SUFFIX));
 }
 
 sub connect_maybe {
@@ -71,6 +97,9 @@ sub connect_maybe {
 	$wiki_domain = Git::config("remote.${remote_name}.mwDomain");
 
 	$wiki = MediaWiki::API->new;
+	bless $wiki;
+	$wiki->{remote_name} = $remote_name;
+	$wiki->{remote_url} = $remote_url;
 
 	$wiki->{ua}->agent("git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent());
 	$wiki->{ua}->conn_cache({total_capacity => undef});
@@ -84,8 +113,8 @@ sub connect_maybe {
 		);
 		Git::credential(\%credential);
 		my $request = {lgname => $credential{username},
-			       lgpassword => $credential{password},
-			       lgdomain => $wiki_domain};
+									 lgpassword => $credential{password},
+									 lgdomain => $wiki_domain};
 		if ($wiki->login($request)) {
 			Git::credential(\%credential, 'approve');
 			print {*STDERR} qq(Logged in mediawiki user "$credential{username}".\n);
@@ -102,4 +131,78 @@ sub connect_maybe {
 	return $wiki;
 }
 
-1; # Famous last words
+sub upload_file {
+	my $self = shift;
+	my $complete_file_name = shift;
+	my $new_sha1 = shift;
+	my $extension = shift;
+	my $file_deleted = shift;
+	my $summary = shift;
+	my $newrevid;
+	my $path = "File:${complete_file_name}";
+	my %hashFiles = $self->get_allowed_file_extensions();
+	if (!exists($hashFiles{$extension})) {
+		print {*STDERR} "${complete_file_name} is not a permitted file on this wiki.\n";
+		print {*STDERR} "Check the configuration of file uploads in your mediawiki.\n";
+		return $newrevid;
+	}
+	# Deleting and uploading a file requires a privileged user
+	if ($file_deleted) {
+		my $query = {
+			action => 'delete',
+			title => $path,
+			reason => $summary
+		};
+		if (!$self->edit($query)) {
+			print {*STDERR} "Failed to delete file on remote wiki\n";
+			print {*STDERR} "Check your permissions on the remote site. Error code:\n";
+			print {*STDERR} $self->{error}->{code} . ':' . $self->{error}->{details};
+			exit 1;
+		}
+	} else {
+		# Don't let perl try to interpret file content as UTF-8 => use "raw"
+		my $handle = Git::command_output_pipe('cat-file', 'blob', $new_sha1);
+		binmode $handle, ':raw';
+		my $content = <$handle>;
+		if ($content ne EMPTY) {
+			$self->{config}->{upload_url} =
+				$self->{remote_url} . "index.php/Special:Upload";
+			$self->edit({
+				action => 'upload',
+				filename => $complete_file_name,
+				comment => $summary,
+				file => [undef,
+								 $complete_file_name,
+								 Content => $content],
+				ignorewarnings => 1,
+			}, {
+				skip_encoding => 1
+			} ) || die $self->{error}->{code} . ':'
+				. $self->{error}->{details} . "\n";
+			my $last_file_page = $self->get_page({title => $path});
+			$newrevid = $last_file_page->{revid};
+			print {*STDERR} "Pushed file: ${new_sha1} - ${complete_file_name}.\n";
+		} else {
+			print {*STDERR} "Empty file ${complete_file_name} not pushed.\n";
+		}
+	}
+	return $newrevid;
+}
+
+sub get_allowed_file_extensions {
+	my $self = shift;
+
+	my $query = {
+		action => 'query',
+		meta => 'siteinfo',
+		siprop => 'fileextensions'
+		};
+	my $result = $self->api($query);
+	my @file_extensions = map {$_->{ext}} @{$result->{query}->{fileextensions}};
+	my %hashFile = map { $_ => 1 } @file_extensions;
+
+	return %hashFile;
+}
+
+
+1;                              # Famous last words

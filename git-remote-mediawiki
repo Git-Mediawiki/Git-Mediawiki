@@ -16,8 +16,7 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 use strict;
 use MediaWiki::API;
 use Git;
-use Git::Mediawiki qw(clean_filename smudge_filename connect_maybe
-					EMPTY HTTP_CODE_OK);
+use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_OK);
 use DateTime::Format::ISO8601;
 use warnings;
 
@@ -71,9 +70,7 @@ for (@tracked_namespaces) { s/_/ /g; }
 chomp(@tracked_namespaces);
 
 # Import media files on pull
-my $import_media = run_git("config --get --bool remote.${remotename}.mediaimport");
-chomp($import_media);
-$import_media = ($import_media eq 'true');
+my $import_media = Git::config_bool("remote.${remotename}.mediaimport");
 
 # Export media files on push
 my $export_media = run_git("config --get --bool remote.${remotename}.mediaexport");
@@ -767,7 +764,7 @@ sub import_file_revision {
 	}
 	if ($content ne DELETED_CONTENT) {
 		print {*STDOUT} 'M 644 inline ' .
-		    fe_escape_path("${title}.mw") . "\n";
+		    fe_escape_path("${title}." . $mediawiki->SUFFIX) . "\n";
 		literal_data($content);
 		if (%mediafile) {
 			print {*STDOUT} 'M 644 inline '
@@ -776,7 +773,7 @@ sub import_file_revision {
 		}
 		print {*STDOUT} "\n\n";
 	} else {
-		print {*STDOUT} 'D ' . fe_escape_path("${title}.mw") . "\n";
+		print {*STDOUT} 'D ' . fe_escape_path("${title}." . $mediawiki->SUFFIX) . "\n";
 	}
 
 	# mediawiki revision number in the git note
@@ -954,7 +951,7 @@ sub mw_import_revids {
 		my %commit;
 		$commit{author} = $rev->{user} || 'Anonymous';
 		$commit{comment} = $rev->{comment} || EMPTY_MESSAGE;
-		$commit{title} = smudge_filename($page_title);
+		$commit{title} = $mediawiki->smudge_filename($page_title);
 		$commit{mw_revision} = $rev->{revid};
 		$commit{content} = mediawiki_smudge($rev->{'*'});
 
@@ -999,70 +996,14 @@ sub error_non_fast_forward {
 	return 0;
 }
 
-sub mw_upload_file {
-	my $complete_file_name = shift;
-	my $new_sha1 = shift;
-	my $extension = shift;
-	my $file_deleted = shift;
-	my $summary = shift;
-	my $newrevid;
-	my $path = "File:${complete_file_name}";
-	my %hashFiles = get_allowed_file_extensions();
-	if (!exists($hashFiles{$extension})) {
-		print {*STDERR} "${complete_file_name} is not a permitted file on this wiki.\n";
-		print {*STDERR} "Check the configuration of file uploads in your mediawiki.\n";
-		return $newrevid;
-	}
-	# Deleting and uploading a file requires a privileged user
-	if ($file_deleted) {
-		$mediawiki = connect_maybe($mediawiki, $remotename, $url);
-		my $query = {
-			action => 'delete',
-			title => $path,
-			reason => $summary
-		};
-		if (!$mediawiki->edit($query)) {
-			print {*STDERR} "Failed to delete file on remote wiki\n";
-			print {*STDERR} "Check your permissions on the remote site. Error code:\n";
-			print {*STDERR} $mediawiki->{error}->{code} . ':' . $mediawiki->{error}->{details};
-			exit 1;
-		}
-	} else {
-		# Don't let perl try to interpret file content as UTF-8 => use "raw"
-		my $content = run_git("cat-file blob ${new_sha1}", 'raw');
-		if ($content ne EMPTY) {
-			$mediawiki = connect_maybe($mediawiki, $remotename, $url);
-			$mediawiki->{config}->{upload_url} =
-				"${url}/index.php/Special:Upload";
-			$mediawiki->edit({
-				action => 'upload',
-				filename => $complete_file_name,
-				comment => $summary,
-				file => [undef,
-					 $complete_file_name,
-					 Content => $content],
-				ignorewarnings => 1,
-			}, {
-				skip_encoding => 1
-			} ) || die $mediawiki->{error}->{code} . ':'
-				 . $mediawiki->{error}->{details} . "\n";
-			my $last_file_page = $mediawiki->get_page({title => $path});
-			$newrevid = $last_file_page->{revid};
-			print {*STDERR} "Pushed file: ${new_sha1} - ${complete_file_name}.\n";
-		} else {
-			print {*STDERR} "Empty file ${complete_file_name} not pushed.\n";
-		}
-	}
-	return $newrevid;
-}
-
 sub mw_push_file {
 	my $diff_info = shift;
 	# $diff_info contains a string in this format:
 	# 100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>
 	my @diff_info_split = split(/[ \t]/, $diff_info);
+	$mediawiki = connect_maybe($mediawiki, $remotename, $url);
 
-	# Filename, including .mw extension
+	# Filename, including the extension
 	my $complete_file_name = shift;
 	# Commit message
 	my $summary = shift;
@@ -1079,13 +1020,13 @@ sub mw_push_file {
 	my $old_sha1 = $diff_info_split[2];
 	my $page_created = ($old_sha1 eq NULL_SHA1);
 	my $page_deleted = ($new_sha1 eq NULL_SHA1);
-	$complete_file_name = clean_filename($complete_file_name);
+	$complete_file_name = $mediawiki->clean_filename($complete_file_name);
 
-	my ($title, $extension) = $complete_file_name =~ /^(.*)\.([^\.]*)$/;
+	my ($title, $extension) = $complete_file_name =~ /^(.*?).?([^\.]*)$/;
 	if (!defined($extension)) {
 		$extension = EMPTY;
 	}
-	if ($extension eq 'mw') {
+	if ($extension eq $mediawiki->SUFFIX) {
 		my $ns = get_mw_namespace_id_for_page($complete_file_name);
 		if ($ns && $ns == get_mw_namespace_id('File') && (!$export_media)) {
 			print {*STDERR} "Ignoring media file related page: ${complete_file_name}\n";
@@ -1101,8 +1042,6 @@ sub mw_push_file {
 		} else {
 			$file_content = run_git("cat-file blob ${new_sha1}");
 		}
-
-		$mediawiki = connect_maybe($mediawiki, $remotename, $url);
 
 		my $result = $mediawiki->edit( {
 			action => 'edit',
@@ -1131,7 +1070,7 @@ sub mw_push_file {
 		$newrevid = $result->{edit}->{newrevid};
 		print {*STDERR} "Pushed file: ${new_sha1} - ${title}\n";
 	} elsif ($export_media) {
-		$newrevid = mw_upload_file($complete_file_name, $new_sha1,
+		$newrevid = $mediawiki->upload_file($complete_file_name, $new_sha1,
 					   $extension, $page_deleted,
 					   $summary);
 	} else {
@@ -1284,21 +1223,6 @@ sub mw_push_revision {
 
 	print {*STDOUT} "ok ${remote}\n";
 	return 1;
-}
-
-sub get_allowed_file_extensions {
-	$mediawiki = connect_maybe($mediawiki, $remotename, $url);
-
-	my $query = {
-		action => 'query',
-		meta => 'siteinfo',
-		siprop => 'fileextensions'
-		};
-	my $result = $mediawiki->api($query);
-	my @file_extensions = map { $_->{ext}} @{$result->{query}->{fileextensions}};
-	my %hashFile = map { $_ => 1 } @file_extensions;
-
-	return %hashFile;
 }
 
 # In memory cache for MediaWiki namespace ids.
