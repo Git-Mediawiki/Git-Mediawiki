@@ -33,8 +33,25 @@ use constant EMPTY => q{};
 use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 
-# Suffix
-use constant SUFFIX => ".mw";
+sub SUFFIX {
+  return run_git("config --get --bool remote.${remotename}.fileextension") || ".mw"
+}
+
+# usage: $out = run_git("command args");
+#        $out = run_git("command args", "raw"); # don't interpret output as UTF-8.
+sub run_git {
+	my $args = shift;
+	my $encoding = (shift || 'encoding(UTF-8)');
+	open(my $git, "-|:${encoding}", "git ${args}")
+	    or die "Unable to fork: $!\n";
+	my $res = do {
+		local $/ = undef;
+		<$git>
+	};
+	close($git);
+
+	return $res;
+}
 
 sub clean_filename {
 	my $filename = shift;
