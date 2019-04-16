@@ -767,7 +767,7 @@ sub import_file_revision {
 	}
 	if ($content ne DELETED_CONTENT) {
 		print {*STDOUT} 'M 644 inline ' .
-		    fe_escape_path("${title}.mw") . "\n";
+		    fe_escape_path("${title}" . Git::Mediawiki::SUFFIX) . "\n";
 		literal_data($content);
 		if (%mediafile) {
 			print {*STDOUT} 'M 644 inline '
@@ -776,7 +776,7 @@ sub import_file_revision {
 		}
 		print {*STDOUT} "\n\n";
 	} else {
-		print {*STDOUT} 'D ' . fe_escape_path("${title}.mw") . "\n";
+		print {*STDOUT} 'D ' . fe_escape_path("${title}" . Git::Mediawiki::SUFFIX) . "\n";
 	}
 
 	# mediawiki revision number in the git note
@@ -1062,7 +1062,7 @@ sub mw_push_file {
 	# 100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>
 	my @diff_info_split = split(/[ \t]/, $diff_info);
 
-	# Filename, including .mw extension
+	# Filename, including the extension
 	my $complete_file_name = shift;
 	# Commit message
 	my $summary = shift;

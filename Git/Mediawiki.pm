@@ -33,6 +33,9 @@ use constant EMPTY => q{};
 use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 
+# Suffix
+use constant SUFFIX => ".mw";
+
 sub clean_filename {
 	my $filename = shift;
 	$filename =~ s{@{[SLASH_REPLACEMENT]}}{/}g;
@@ -53,7 +56,7 @@ sub smudge_filename {
 	$filename =~ s/ /_/g;
 	# Decode forbidden characters encoded in clean_filename
 	$filename =~ s/_%_([0-9a-fA-F][0-9a-fA-F])/sprintf('%c', hex($1))/ge;
-	return substr($filename, 0, NAME_MAX-length('.mw'));
+	return substr($filename, 0, NAME_MAX-length(SUFFIX));
 }
 
 sub connect_maybe {
