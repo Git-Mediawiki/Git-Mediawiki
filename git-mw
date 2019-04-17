@@ -20,8 +20,7 @@ use HTML::TreeBuilder;
 
 use Git;
 use MediaWiki::API;
-use Git::Mediawiki qw(clean_filename connect_maybe
-					EMPTY HTTP_CODE_PAGE_NOT_FOUND);
+use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_PAGE_NOT_FOUND);
 
 # By default, use UTF-8 to communicate with Git and the user
 binmode STDERR, ':encoding(UTF-8)';
@@ -187,7 +186,7 @@ MESSAGE
 	}
 
 	v_print("### Retrieving template\n");
-	($wiki_page_name = clean_filename($file_name)) =~ s/\.[^.]+$//;
+	($wiki_page_name = $wiki->clean_filename($file_name)) =~ s/\.[^.]+$//;
 	$template = get_template($remote_url, $wiki_page_name);
 
 	v_print("### Parsing local content\n");

@@ -19,12 +19,9 @@ require Exporter;
 @EXPORT = ();
 
 # Methods which can be called as standalone functions as well:
-@EXPORT_OK = qw(clean_filename connect_maybe
+@EXPORT_OK = qw(connect_maybe
 								EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
 }
-
-# Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
-use constant SLASH_REPLACEMENT => '%2F';
 
 # Used to test for empty strings
 use constant EMPTY => q{};
@@ -33,34 +30,29 @@ use constant EMPTY => q{};
 use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 
+# Mediawiki filenames can contain forward slashes. This variable
+# decides by which pattern they should be replaced
+sub SLASH_REPLACEMENT {
+  my $self = shift;
+  if ( $self && !$self->{slashReplacment} ) {
+		($self->{slashReplacment}) = Git::config("mediawiki.slashReplacement") || '%2F';
+  }
+  return $self->{slashReplacment};
+}
+
 sub SUFFIX {
 	my $self = shift;
 	if ( !$self->{suffix} ) {
-		my $configurable = "remote." . $self->{remote_name} . ".fileextension";
-		$self->{suffix} = run_git("config --get $configurable") || ".mw"
+		($self->{suffix}) = Git::config("mediawiki.fileExtension") || ".mw";
 	}
 	return $self->{suffix};
 }
 
-# usage: $out = run_git("command args");
-#        $out = run_git("command args", "raw"); # don't interpret output as UTF-8.
-sub run_git {
-	my $args = shift;
-	my $encoding = (shift || 'encoding(UTF-8)');
-	open(my $git, "-|:${encoding}", "git ${args}")
-	    or die "Unable to fork: $!\n";
-	my $res = do {
-		local $/ = undef;
-		<$git>
-	};
-	close($git);
-
-	return $res;
-}
-
 sub clean_filename {
+	my $self = shift;
 	my $filename = shift;
-	$filename =~ s{@{[SLASH_REPLACEMENT]}}{/}g;
+	my $sr = $self->SLASH_REPLACEMENT;
+	$filename =~ s{$sr}{/}g;
 	# [, ], |, {, and } are forbidden by MediaWiki, even URL-encoded.
 	# Do a variant of URL-encoding, i.e. looks like URL-encoding,
 	# but with _ added to prevent MediaWiki from thinking this is
@@ -75,7 +67,8 @@ sub clean_filename {
 sub smudge_filename {
 	my $self = shift;
 	my $filename = shift;
-	$filename =~ s{/}{@{[SLASH_REPLACEMENT]}}g;
+	my $sr = $self->SLASH_REPLACEMENT;
+	$filename =~ s{/}{$sr}g;
 	$filename =~ s/ /_/g;
 	# Decode forbidden characters encoded in clean_filename
 	$filename =~ s/_%_([0-9a-fA-F][0-9a-fA-F])/sprintf('%c', hex($1))/ge;

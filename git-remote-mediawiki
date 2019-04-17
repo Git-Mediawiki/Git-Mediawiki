@@ -16,8 +16,7 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 use strict;
 use MediaWiki::API;
 use Git;
-use Git::Mediawiki qw(clean_filename connect_maybe
-											EMPTY HTTP_CODE_OK);
+use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_OK);
 use DateTime::Format::ISO8601;
 use warnings;
 
@@ -1061,6 +1060,7 @@ sub mw_push_file {
 	# $diff_info contains a string in this format:
 	# 100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>
 	my @diff_info_split = split(/[ \t]/, $diff_info);
+	$mediawiki = connect_maybe($mediawiki, $remotename, $url);
 
 	# Filename, including the extension
 	my $complete_file_name = shift;
@@ -1079,13 +1079,13 @@ sub mw_push_file {
 	my $old_sha1 = $diff_info_split[2];
 	my $page_created = ($old_sha1 eq NULL_SHA1);
 	my $page_deleted = ($new_sha1 eq NULL_SHA1);
-	$complete_file_name = clean_filename($complete_file_name);
+	$complete_file_name = $mediawiki->clean_filename($complete_file_name);
 
 	my ($title, $extension) = $complete_file_name =~ /^(.*)\.([^\.]*)$/;
 	if (!defined($extension)) {
 		$extension = EMPTY;
 	}
-	if ($extension eq 'mw') {
+	if ($extension eq $mediawiki->SUFFIX) {
 		my $ns = get_mw_namespace_id_for_page($complete_file_name);
 		if ($ns && $ns == get_mw_namespace_id('File') && (!$export_media)) {
 			print {*STDERR} "Ignoring media file related page: ${complete_file_name}\n";
@@ -1101,8 +1101,6 @@ sub mw_push_file {
 		} else {
 			$file_content = run_git("cat-file blob ${new_sha1}");
 		}
-
-		$mediawiki = connect_maybe($mediawiki, $remotename, $url);
 
 		my $result = $mediawiki->edit( {
 			action => 'edit',
