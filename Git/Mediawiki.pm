@@ -124,3 +124,9 @@ sub connect_maybe {
 }
 
 1; # Famous last words
+
+# Local Variables:
+# eval: (setenv "GITPERLLIB" ".")
+# tab-width: 2
+# indent-tabs-mode: t
+# End:

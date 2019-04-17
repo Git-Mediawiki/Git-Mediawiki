@@ -1386,3 +1386,9 @@ sub get_mw_namespace_id_for_page {
 		return;
 	}
 }
+
+# Local Variables:
+# eval: (setenv "GITPERLLIB" ".")
+# tab-width: 2
+# indent-tabs-mode: t
+# End:
