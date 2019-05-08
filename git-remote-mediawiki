@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB}));
+use lib (split(/:/, $ENV{GITPERLLIB} || "."));
 
 # Copyright (C) 2011
 #     Jérémie Nikaes <jeremie.nikaes@ensimag.imag.fr>
@@ -11,14 +11,16 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 # License: GPL v2 or later
 
 # Gateway between Git and MediaWiki.
-# Documentation & bugtracker: https://github.com/moy/Git-Mediawiki/
+# Documentation & bugtracker: https://github.com/MWStake/Git-Mediawiki/
 
 use strict;
-use MediaWiki::API;
-use Git;
-use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_OK);
-use DateTime::Format::ISO8601;
 use warnings;
+
+use DateTime::Format::ISO8601;
+
+use Git;
+use MediaWiki::API;
+use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_OK);
 
 # By default, use UTF-8 to communicate with Git and the user
 binmode STDERR, ':encoding(UTF-8)';

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB}));
+use lib (split(/:/, $ENV{GITPERLLIB} || "."));
 
 # Copyright (C) 2013
 #     Benoit Person <benoit.person@ensimag.imag.fr>
@@ -8,7 +8,7 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 # License: GPL v2 or later
 
 # Set of tools for git repo with a mediawiki remote.
-# Documentation & bugtracker: https://github.com/moy/Git-Mediawiki/
+# Documentation & bugtracker: https://github.com/MWStake/Git-Mediawiki/
 
 use strict;
 use warnings;
