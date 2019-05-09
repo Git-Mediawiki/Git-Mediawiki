@@ -226,4 +226,9 @@ sub get_allowed_file_extensions {
 }
 
 
-1;                              # Famous last words
+1; # Famous last words
+
+# Local Variables:
+# tab-width: 2
+# indent-tabs-mode: t
+# End:

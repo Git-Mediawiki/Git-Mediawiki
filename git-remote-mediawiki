@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB} || "."));
+use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 
 # Copyright (C) 2011
 #     Jérémie Nikaes <jeremie.nikaes@ensimag.imag.fr>
@@ -1329,3 +1329,8 @@ sub get_mw_namespace_id_for_page {
 		return;
 	}
 }
+
+# Local Variables:
+# tab-width: 2
+# indent-tabs-mode: t
+# End:
