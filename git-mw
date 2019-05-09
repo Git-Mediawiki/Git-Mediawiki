@@ -1,6 +1,6 @@
-#!/usr/bin/perl
+#! /usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB} || "."));
+use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 
 # Copyright (C) 2013
 #     Benoit Person <benoit.person@ensimag.imag.fr>
