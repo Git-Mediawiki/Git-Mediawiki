@@ -1,4 +1,6 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
+# -*-tab-width: 4; fill-column: 76; -*-
+# vi:shiftwidth=4 tabstop=4 textwidth=76
 
 use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 
