@@ -56,7 +56,8 @@ use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
 sub SLASH_REPLACEMENT {
 	my $self = shift;
 	if ( $self && !$self->{slashReplacment} ) {
-		($self->{slashReplacment}) = Git::config("mediawiki.slashReplacement") || '%2F';
+		($self->{slashReplacment}) = Git::config("mediawiki.slashReplacement")
+			|| '%2F';
 	}
 	return $self->{slashReplacment};
 }
@@ -122,7 +123,9 @@ sub connect_maybe {
 	$wiki->{remote_name} = $remote_name;
 	$wiki->{remote_url} = $remote_url;
 
-	$wiki->{ua}->agent("git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent());
+	$wiki->{ua}->agent(
+		"git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent()
+	);
 	$wiki->{ua}->conn_cache({total_capacity => undef});
 
 	$wiki->{config}->{api_url} = "${remote_url}/api.php";
@@ -138,12 +141,13 @@ sub connect_maybe {
 									 lgdomain => $wiki_domain};
 		if ($wiki->login($request)) {
 			Git::credential(\%credential, 'approve');
-			print {*STDERR} qq(Logged in mediawiki user "$credential{username}".\n);
+			warn  qq(Logged in mediawiki user "$credential{username}".\n);
 		} else {
-			print {*STDERR} qq(Failed to log in mediawiki user "$credential{username}" on ${remote_url}\n);
-			print {*STDERR} '  (error ' .
-				$wiki->{error}->{code} . ': ' .
-				$wiki->{error}->{details} . ")\n";
+			warn  qq(Failed to log in mediawiki user "$credential{username}" )
+				. "on ${remote_url}\n";
+			warn  sprintf(
+				'  (error %s:%s)', $wiki->{error}->{code}, $wiki->{error}->{details}
+			) . "\n";
 			Git::credential(\%credential, 'reject');
 			exit 1;
 		}
@@ -163,8 +167,8 @@ sub upload_file {
 	my $path = "File:${complete_file_name}";
 	my %hashFiles = $self->get_allowed_file_extensions();
 	if (!exists($hashFiles{$extension})) {
-		print {*STDERR} "${complete_file_name} is not a permitted file on this wiki.\n";
-		print {*STDERR} "Check the configuration of file uploads in your mediawiki.\n";
+		warn  "${complete_file_name} is not a permitted file on this wiki.\n";
+		warn  "Check the configuration of file uploads in your mediawiki.\n";
 		return $newrevid;
 	}
 	# Deleting and uploading a file requires a privileged user
@@ -175,9 +179,9 @@ sub upload_file {
 			reason => $summary
 		};
 		if (!$self->edit($query)) {
-			print {*STDERR} "Failed to delete file on remote wiki\n";
-			print {*STDERR} "Check your permissions on the remote site. Error code:\n";
-			print {*STDERR} $self->{error}->{code} . ':' . $self->{error}->{details};
+			warn  "Failed to delete file on remote wiki\n";
+			warn  "Check your permissions on the remote site. Error code:\n";
+			warn  $self->{error}->{code} . ':' . $self->{error}->{details} . "\n";
 			exit 1;
 		}
 	} else {
@@ -202,9 +206,9 @@ sub upload_file {
 				. $self->{error}->{details} . "\n";
 			my $last_file_page = $self->get_page({title => $path});
 			$newrevid = $last_file_page->{revid};
-			print {*STDERR} "Pushed file: ${new_sha1} - ${complete_file_name}.\n";
+			warn  "Pushed file: ${new_sha1} - ${complete_file_name}.\n";
 		} else {
-			print {*STDERR} "Empty file ${complete_file_name} not pushed.\n";
+			warn  "Empty file ${complete_file_name} not pushed.\n";
 		}
 	}
 	return $newrevid;
