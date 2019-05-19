@@ -1,4 +1,6 @@
-package Git::Mediawiki;
+package Git::Mediawiki; # -*-tab-width: 4; fill-column: 76 -*-
+# vi:shiftwidth=4 tabstop=4 textwidth=76
+
 
 # Copyright (C) 2013  Benoit Person  <benoit.person@ensimag.imag.fr>
 # Copyright (C) 2017  Antoine Beaupré
