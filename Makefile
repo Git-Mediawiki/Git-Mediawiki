@@ -40,4 +40,10 @@ perlcritic:
 	perlcritic -5 $(SCRIPT_PERL)
 	-perlcritic -2 $(SCRIPT_PERL)
 
+dockerBuild:
+	docker build -t mabs .
+
+docker:
+	docker run -v `pwd`/WEB:/WEB -v `pwd`/t:/t mabs -n devtest
+
 .PHONY: all test check install_pm install clean perlcritic

@@ -9,7 +9,10 @@ RUN apt-get install -y              \
 	liblwp-protocol-https-perl      \
 	libmediawiki-api-perl           \
 	lighttpd						\
-    php-cgi							\
+	make							\
+	php-apcu						\
+	php-gd							\
+	php-cgi							\
 	php-cli							\
 	php-curl						\
 	php-intl						\
@@ -18,5 +21,7 @@ RUN apt-get install -y              \
 	php-xml							\
 	strace							\
 	wget
-ENTRYPOINT /usr/sbin/lighttpd -D -f /WEB/etc/lighttpd.conf
+COPY run.sh /
+COPY Makefile /
+ENTRYPOINT sh -x run.sh
 

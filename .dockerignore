@@ -1,0 +1,4 @@
+WEB/db/*
+error_log
+*.sqlite
+*.gz

@@ -55,7 +55,7 @@ die_with_status () {
 
 # Check the preconditions to run git-remote-mediawiki's tests
 test_check_precond () {
-	GIT_EXEC_PATH=$(cd "$(dirname "$0")" && cd "../.." && pwd)
+	GIT_EXEC_PATH=$(cd "$(dirname "$0")/.." && pwd)
 	PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
 
 	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
@@ -456,11 +456,11 @@ wiki_install () {
 # Warning: This function must be called only in a subdirectory of t/ directory
 wiki_reset () {
 	# Copy initial database of the wiki
-	if [ ! -f "../$FILES_FOLDER/$DB_FILE" ] ; then
-		error "Can't find ../$FILES_FOLDER/$DB_FILE in the current folder."
+	if [ ! -f "$FILES_FOLDER/$DB_FILE" ] ; then
+		error "Can't find $FILES_FOLDER/$DB_FILE in the current folder."
 	fi
-	cp "../$FILES_FOLDER/$DB_FILE" "$TMP" ||
-		error "Can't copy ../$FILES_FOLDER/$DB_FILE in $TMP"
+	cp "$FILES_FOLDER/$DB_FILE" "$TMP" ||
+		error "Can't copy $FILES_FOLDER/$DB_FILE in $TMP"
 	echo "File $FILES_FOLDER/$DB_FILE is set in $TMP"
 }
 
