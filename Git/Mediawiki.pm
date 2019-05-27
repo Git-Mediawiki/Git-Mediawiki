@@ -27,6 +27,7 @@ use 5.008;
 use strict;
 use POSIX;
 use Git;
+use IO::Socket::SSL;
 
 BEGIN {
 
@@ -108,6 +109,35 @@ sub smudge_filename {
 	return substr($filename, 0, NAME_MAX-length($self->SUFFIX));
 }
 
+sub envOrFlag {
+	my ( $env, $flag, $type ) = @_;
+
+	$type = ""
+		if !defined $type;
+	$type = lc $type;
+
+	if ( defined $ENV{$env} ) {
+		if ( $type eq 'bool' ) {
+			return 1
+				if lc( $ENV{$env} ) eq 'true' or lc( $ENV{$env} ) eq 'yes';
+			return ""
+				if lc( $ENV{$env} ) eq 'false' or lc( $ENV{$env} ) eq 'no';
+		}
+		return $ENV{$env};
+	}
+	if ( defined $flag ) {
+		if ( $type eq 'bool' ) {
+			return Git::config_bool( $flag );
+		} elsif ( $type eq 'path' ) {
+			return Git::config_path( $flag );
+		} elsif ( $type eq 'int' ) {
+			return Git::config_int( $flag );
+		}
+		return Git::config( $flag );
+	}
+	return;
+}
+
 sub connect_maybe {
 	my $wiki = shift;
 	if ($wiki) {
@@ -123,9 +153,29 @@ sub connect_maybe {
 	$wiki_domain = Git::config("remote.${remote_name}.mwDomain");
 
 	$wiki = MediaWiki::API->new;
-	bless $wiki;
+	bless $wiki, 'Git::Mediawiki';
 	$wiki->{remote_name} = $remote_name;
 	$wiki->{remote_url} = $remote_url;
+
+	my %sslOpts = {};
+	if ( envOrFlag( 'GIT_SSL_NO_VERIFY', 'http.sslVerify', 'bool' ) ) {
+		$sslOpts{SSL_verify_mode} = IO::Socket::SSL::SSL_VERIFY_NONE;
+		$sslOpts{verify_hostname} = 0;
+	}
+	if ( my $path = envOrFlag( 'GIT_SSL_CAPATH', 'http.sslCAPath', 'path' ) ) {
+		$sslOpts{SSL_ca_path} = $path;
+	}
+	if ( my $file = envOrFlag( 'GIT_SSL_CAINFO', 'http.sslCAInfo', 'path' ) ) {
+		$sslOpts{SSL_ca_file} = $file
+	}
+	if ( my $file = envOrFlag( 'GIT_SSL_CERT', 'http.sslCert', 'path' ) ) {
+		$sslOpts{SSL_cert_file} = $file;
+	}
+	if ( my $file = envOrFlag( 'GIT_SSL_KEY', 'http.sslKey', 'path' ) ) {
+		$sslOpts{SSL_key_file} = $file;
+	}
+
+	$wiki->{ua}->ssl_opts( %sslOpts );
 
 	$wiki->{ua}->agent(
 		"git-mediawiki/$Git::Mediawiki::VERSION " . $wiki->{ua}->agent()

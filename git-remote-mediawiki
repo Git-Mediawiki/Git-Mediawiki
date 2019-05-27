@@ -881,9 +881,9 @@ sub mw_import_ref {
 	my $last_local = get_last_local_revision();
 	my $fetch_from = $last_local + 1;
 	if ($fetch_from == 1) {
-		warn ", fetching from beginning.\n";
+		warn "... fetching from beginning.\n";
 	} else {
-		warn ", fetching from here.\n";
+		warn "... fetching from here.\n";
 	}
 
 	my $n = 0;
