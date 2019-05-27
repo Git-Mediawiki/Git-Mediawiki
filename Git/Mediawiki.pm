@@ -1,6 +1,6 @@
 package Git::Mediawiki;
-# -*-tab-width: 4; fill-column: 76 -*-
-# vi:shiftwidth=4 tabstop=4 textwidth=76
+# -*-tab-width: 2; fill-column: 76 -*-
+# vi:shiftwidth=2 tabstop=2 textwidth=76
 
 # Copyright (C) 2013  Benoit Person  <benoit.person@ensimag.imag.fr>
 # Copyright (C) 2017  Antoine Beaupré
@@ -42,8 +42,10 @@ require Exporter;
 @EXPORT = ();
 
 # Methods which can be called as standalone functions as well:
-@EXPORT_OK = qw(connect_maybe
-								EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
+@EXPORT_OK = qw(
+								 connect_maybe EMPTY HTTP_CODE_OK
+								 HTTP_CODE_PAGE_NOT_FOUND
+						 );
 }
 
 # Used to test for empty strings
@@ -231,10 +233,4 @@ sub get_allowed_file_extensions {
 	return %hashFile;
 }
 
-
 1; # Famous last words
-
-# Local Variables:
-# tab-width: 2
-# indent-tabs-mode: t
-# End:

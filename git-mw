@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# -*-tab-width: 4; fill-column: 76 -*-
-# vi:shiftwidth=4 tabstop=4 textwidth=76
+# -*-tab-width: 2; fill-column: 76 -*-
+# vi:shiftwidth=2 tabstop=2 textwidth=76
 
 use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 
@@ -385,8 +385,3 @@ git mw commands are:
 END
 	exit;
 }
-
-# Local Variables:
-# tab-width: 2
-# indent-tabs-mode: t
-# End:

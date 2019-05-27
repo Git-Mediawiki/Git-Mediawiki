@@ -1,8 +1,6 @@
 #! /usr/bin/env perl
-# -*-tab-width: 4; fill-column: 76; -*-
-# vi:shiftwidth=4 tabstop=4 textwidth=76
-
-use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
+# -*-tab-width: 2; fill-column: 76; -*-
+# vi:shiftwidth=2 tabstop=2 textwidth=76
 
 # Copyright (C) 2011
 #     Jérémie Nikaes <jeremie.nikaes@ensimag.imag.fr>
@@ -33,6 +31,8 @@ use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 use strict;
 use warnings;
 
+use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
+
 use DateTime::Format::ISO8601;
 
 use Git;
@@ -40,12 +40,11 @@ use MediaWiki::API;
 use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_OK);
 use Try::Tiny;
 use List::MoreUtils qw(apply);
+use URI::Escape;
 
 # By default, use UTF-8 to communicate with Git and the user
 binmode STDERR, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
-
-use URI::Escape;
 
 # It's not always possible to delete pages (may require some
 # privileges). Deleted pages are replaced with this content.
@@ -1389,8 +1388,3 @@ sub get_mw_namespace_id_for_page {
 		return;
 	}
 }
-
-# Local Variables:
-# tab-width: 2
-# indent-tabs-mode: t
-# End:
