@@ -22,7 +22,7 @@ export TEST_OUTPUT_DIRECTORY CURR_DIR
 if test "$LIGHTTPD" = "false" ; then
 	PORT=80
 else
-	WIKI_DIR_INST="$CURR_DIR/$WEB_WWW"
+	WIKI_DIR_INST="$WEB_WWW"
 fi
 
 wiki_upload_file () {
@@ -57,7 +57,7 @@ die_with_status () {
 test_check_precond () {
 	GIT_EXEC_PATH=$(cd "$(dirname "$0")/.." && pwd)
 	PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
-
+	echo "$WIKI_DIR_INST/$WIKI_DIR_NAME"
 	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
 	then
 		skip_all='skipping gateway git-mw tests, no mediawiki found'
@@ -117,7 +117,7 @@ test_path_is_missing () {
 test_i18ngrep () {
 	if test -n "$GETTEXT_POISON"
 	then
-	    : # pretend success
+		: # pretend success
 	elif test "x!" = "x$1"
 	then
 		shift
@@ -237,10 +237,11 @@ config_lighttpd () {
 	mkdir -p $WEB
 	mkdir -p $WEB_TMP
 	mkdir -p $WEB_WWW
+	rm -f "$WEB_TMP/lighttpd.error.log"
 	cat > $WEB/lighttpd.conf <<EOF
-	server.document-root = "$CURR_DIR/$WEB_WWW"
+	server.document-root = "$WEB_WWW"
 	server.port = $PORT
-	server.pid-file = "$CURR_DIR/$WEB_TMP/pid"
+	server.pid-file = "$WEB_TMP/pid"
 
 	server.modules = (
 	"mod_rewrite",
@@ -249,6 +250,8 @@ config_lighttpd () {
 	"mod_accesslog",
 	"mod_fastcgi"
 	)
+
+	server.errorlog = "$WEB_TMP/lighttpd.error.log"
 
 	index-file.names = ("index.php" , "index.html")
 
@@ -309,8 +312,8 @@ config_lighttpd () {
 
 	fastcgi.server = ( ".php" =>
 	("localhost" =>
-	( "socket" => "$CURR_DIR/$WEB_TMP/php.socket",
-	"bin-path" => "$PHP_DIR/php-cgi -c $CURR_DIR/$WEB/php.ini"
+	( "socket" => "$WEB_TMP/php.socket",
+	"bin-path" => "$PHP_DIR/php-cgi -c $WEB/php.ini"
 
 	)
 	)
@@ -334,7 +337,10 @@ start_lighttpd () {
 	"$LIGHTTPD_DIR"/lighttpd -f "$WEB"/lighttpd.conf
 
 	if test $? -ne 0 ; then
-		echo "Could not execute http deamon lighttpd"
+		echo "Could not execute http deamon lighttpd. Error log:"
+		echo "**************************************************"
+		cat $WEB_TMP/lighttpd.error.log
+		echo "**************************************************"
 		exit 1
 	fi
 }
@@ -346,28 +352,6 @@ stop_lighttpd () {
 	test -f "$WEB_TMP/pid" && kill $(cat "$WEB_TMP/pid")
 }
 
-# Create the SQLite database of the MediaWiki. If the database file already
-# exists, it will be deleted.
-# This script should be runned from the directory where $FILES_FOLDER is
-# located.
-create_db () {
-	rm -f "$TMP/$DB_FILE"
-
-	echo "Generating the SQLite database file. It can take some time ..."
-	# Run the php script to generate the SQLite database file
-	# with cURL calls.
-	php "$FILES_FOLDER/$DB_INSTALL_SCRIPT" $(basename "$DB_FILE" .sqlite) \
-		"$WIKI_ADMIN" "$WIKI_PASSW" "$TMP" "$PORT"
-
-	if [ ! -f "$TMP/$DB_FILE" ] ; then
-		error "Can't create database file $TMP/$DB_FILE. Try to run ./install-wiki.sh delete first."
-	fi
-
-	# Copy the generated database file into the directory the
-	# user indicated.
-	cp "$TMP/$DB_FILE" "$FILES_FOLDER" ||
-		error "Unable to copy $TMP/$DB_FILE to $FILES_FOLDER"
-}
 
 # Install a wiki in your web server directory.
 wiki_install () {
@@ -482,6 +466,6 @@ wiki_delete () {
 
 	# Delete the wiki's SQLite database
 	rm -f "$TMP/$DB_FILE" || error "Database $TMP/$DB_FILE could not be deleted."
-	rm -f "$FILES_FOLDER/$DB_FILE"
+	rm -f "$FILES_FOLDER/$DBFILE"
 	rm -rf "$TMP/mediawiki-$MW_VERSION_MAJOR.$MW_VERSION_MINOR.tar.gz"
 }

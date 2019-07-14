@@ -7,6 +7,8 @@
 #     Simon Perrat <simon.perrat@ensimag.imag.fr>
 #
 ## Test git-remote-mediawiki
+mkfilePath := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfileDir := $(patsubst %/,%,$(dir $(mkfilePath)))
 
 all: test
 
@@ -19,10 +21,15 @@ help:
 	@echo 'Run "$(MAKE) clean" to remove trash folders'
 
 test:
-	@for t in $(T); do \
-		echo "$$t"; \
-		"./$$t" --verbose || exit 1; \
-	done
+	. ${mkfileDir}/test-gitmw-lib.sh 				&&	\
+	mkdir -p $$FILES_FOLDER							&&	\
+	cp -vr $$TMP/* $$FILES_FOLDER					&&	\
+	start_lighttpd 									&&	\
+	for t in $(T); do 									\
+		echo "$$t"; 									\
+		"./$$t" --verbose || exit 1;					\
+	done											&&	\
+	stop_lighttpd
 
 clean:
 	$(RM) -r 'trash directory'.*

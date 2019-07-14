@@ -96,8 +96,8 @@ GetOptions( %{$cmd->[1]},
 sub preview_help {
 	print {*STDOUT} <<'END';
 USAGE: git mw preview [--remote|-r <remote name>] [--autoload|-a]
-                      [--output|-o <output filename>] [--verbose|-v]
-                      <blob> | <filename>
+		      [--output|-o <output filename>] [--verbose|-v]
+		      <blob> | <filename>
 
 DESCRIPTION:
 Preview is an utiliy to preview local content of a mediawiki repo as if it was
@@ -120,20 +120,20 @@ in your default web browser if the option --autoload is present.
 
 OPTIONS:
     -r <remote name>, --remote <remote name>
-        If the remote is a mediawiki, the template and the parse engine
-        used for the preview will be those of that remote.
-        If not, a list of valid remotes will be shown.
+	If the remote is a mediawiki, the template and the parse engine
+	used for the preview will be those of that remote.
+	If not, a list of valid remotes will be shown.
 
     -a, --autoload
-        Try to load the HTML output in a new tab (or new window) of your
-        default web browser.
+	Try to load the HTML output in a new tab (or new window) of your
+	default web browser.
 
     -o <output filename>, --output <output filename>
-        Change the HTML output filename. Default filename is based on the
-        input filename with its extension replaced by '.html'.
+	Change the HTML output filename. Default filename is based on the
+	input filename with its extension replaced by '.html'.
 
     -v, --verbose
-        Show more information on what's going on under the hood.
+	Show more information on what's going on under the hood.
 END
 	exit;
 }

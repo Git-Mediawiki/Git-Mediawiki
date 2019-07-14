@@ -1,27 +1,27 @@
 #-*-tab-width: 4; fill-column: 76; whitespace-line-column: 77 -*-
 # vi:shiftwidth=4 tabstop=4 textwidth=76
 
-FROM debian:stretch-slim
-RUN apt-get update -q
-RUN apt-get install -y              \
-	git                             \
-	libdatetime-format-iso8601-perl \
-	liblwp-protocol-https-perl      \
-	libmediawiki-api-perl           \
-	lighttpd						\
-	make							\
-	php-apcu						\
-	php-gd							\
-	php-cgi							\
-	php-cli							\
-	php-curl						\
-	php-intl						\
-	php-mbstring			        \
-	php-sqlite3			        	\
-	php-xml							\
-	strace							\
-	wget
-COPY run.sh /
-COPY Makefile /
-ENTRYPOINT sh -x run.sh
+FROM perl-php-git
 
+ENV MWURL=https://releases.wikimedia.org/mediawiki/1.33/mediawiki-1.33.0.tar.gz
+
+RUN mkdir -p /wiki/var/lighttpd					\
+	/wiki/db /wiki/www /wiki/log &&				\
+	chmod 1777 /wiki/db /wiki/log				\
+	/wiki/var/lighttpd
+
+RUN wget -O /wiki/mediawiki.tar.gz ${MWURL}		\
+	&& tar -C /wiki/www --strip-components=1 -xzf /wiki/mediawiki.tar.gz
+
+RUN cd /wiki/www								\
+	&& php maintenance/install.php				\
+		--dbtype=sqlite --dbpath=/wiki/db		\
+		--scriptpath=/ --pass=none1234			\
+		wiki admin
+
+COPY Makefile /
+COPY Git/* /files/Git/
+COPY git-* /files/
+RUN make -C / install files=/files
+
+ENTRYPOINT ["make",	"-f", "/Makefile"]
