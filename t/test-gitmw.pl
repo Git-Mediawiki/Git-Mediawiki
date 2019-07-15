@@ -24,16 +24,18 @@
 
 use MediaWiki::API;
 use Getopt::Long;
-use encoding 'utf8';
 use DateTime::Format::ISO8601;
+use IO::File;
 use open ':encoding(utf8)';
 use constant SLASH_REPLACEMENT => "%2F";
+use strict;
 
 #Parsing of the config file
 
 my $configfile = "$ENV{'CURR_DIR'}/test.config";
 my %config;
-open my $CONFIG, "<",  $configfile or die "can't open $configfile: $!";
+my $CONFIG = IO::File->new( $configfile )
+  or die "can't open $configfile: $!";
 while (<$CONFIG>)
 {
 	chomp;
@@ -46,7 +48,7 @@ while (<$CONFIG>)
 	last if ($key eq 'LIGHTTPD' and $value eq 'false');
 	last if ($key eq 'PORT');
 }
-close $CONFIG or die "can't close $configfile: $!";
+$CONFIG->close() or die "can't close $configfile: $!";
 
 my $wiki_address = "http://$config{'SERVER_ADDR'}".":"."$config{'PORT'}";
 my $wiki_url = "$wiki_address/$config{'WIKI_DIR_NAME'}/api.php";
@@ -87,10 +89,9 @@ sub wiki_getpage {
 	# Replace spaces by underscore in the page name
 	$pagename =~ s/ /_/g;
 	$pagename =~ s/\//%2F/g;
-	open(my $file, ">$destdir/$pagename.mw");
-	print $file "$content";
-	close ($file);
-
+	my $file = IO::File->new( "$destdir/$pagename.mw", q{>} );
+	$file->print( $content );
+	$file->close();
 }
 
 # wiki_delete_page <page_name>
@@ -172,11 +173,11 @@ sub wiki_getallpagename {
 				cmlimit => 500 },
 		)
 		|| die $mw->{error}->{code}.": ".$mw->{error}->{details};
-		open(my $file, ">all.txt");
+		my $file = IO::File->new( "all.txt", q{>} );
 		foreach my $page (@{$mw_pages}) {
-			print $file "$page->{title}\n";
+			$file->print( "$page->{title}\n" );
 		}
-		close ($file);
+		$file->close();
 
 	} else {
 		my $mw_pages = $mw->list({
@@ -185,11 +186,11 @@ sub wiki_getallpagename {
 				aplimit => 500,
 			})
 		|| die $mw->{error}->{code}.": ".$mw->{error}->{details};
-		open(my $file, ">all.txt");
+		my $file = IO::File->new( "all.txt", q{>});
 		foreach my $page (@{$mw_pages}) {
-			print $file "$page->{title}\n";
+			$file->print( "$page->{title}\n" );
 		}
-		close ($file);
+		$file->close();
 	}
 }
 
