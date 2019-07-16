@@ -10,9 +10,9 @@
 mkfilePath := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfileDir := $(patsubst %/,%,$(dir $(mkfilePath)))
 
-all: test
+T=$(wildcard ${mkfileDir}/t[0-9][0-9][0-9][0-9]-*.sh)
 
-T = $(wildcard t[0-9][0-9][0-9][0-9]-*.sh)
+all: test
 
 .PHONY: help test clean all
 
@@ -30,10 +30,9 @@ test:
 		"$$MW_VERSION_MAJOR.$$MW_VERSION_MINOR"	"$$SERVER_ADDR:$$PORT" 		\
 		$$MW_TGZ $$TMP $$WIKI_DIR_NAME									&&	\
 	cp -r $$TMP/*.sqlite $$FILES_FOLDER/								&&	\
-	for t in $(T); do 														\
+	for t in ${T}; do 	\
 		cd ${mkfileDir};													\
-		echo "$$t"; 														\
-		"./$$t" --verbose || ( stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG	\
+		"$$t" --verbose || ( stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG	\
 			$$PHP_ERROR_LOG $$MW_DEBUG_LOG; exit 1 )						\
 	done																&&	\
 	stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG $$PHP_ERROR_LOG				\

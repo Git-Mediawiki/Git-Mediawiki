@@ -373,7 +373,6 @@ stop_lighttpd () {
 	wikiDebugLog=$4 # $MW_DEBUG_LOG
 	test -f $pid && kill $(cat $pid)
 
-
 	output_log $errorLog "Output from lighttpd error log:"
 	output_log $phpErrorLog "Output from PHP error log:"
 	output_log $wikiDebugLog "MediaWiki debug log:"
