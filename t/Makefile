@@ -21,15 +21,23 @@ help:
 	@echo 'Run "$(MAKE) clean" to remove trash folders'
 
 test:
-	. ${mkfileDir}/test-gitmw-lib.sh 				&&	\
-	mkdir -p $$FILES_FOLDER							&&	\
-	cp -vr $$TMP/* $$FILES_FOLDER					&&	\
-	start_lighttpd 									&&	\
-	for t in $(T); do 									\
-		echo "$$t"; 									\
-		"./$$t" --verbose || exit 1;					\
-	done											&&	\
-	stop_lighttpd
+	. ${mkfileDir}/test-gitmw-lib.sh					 				&&	\
+	rm -f "$$WIKI_DIR_INST/$$WIKI_DIR_NAME/LocalSettings.php"				\
+		$$TMP/*.sqlite $$FILES_FOLDER/*.sqlite 							&&	\
+	mkdir -p $$FILES_FOLDER												&&	\
+	start_lighttpd $$WEB_TMP/pid $$LIGHTTPD_DIR $$WEB $$WEB_ERROR_LOG	&&	\
+	wiki_install $$FILES_FOLDER "$$WIKI_DIR_INST/$$WIKI_DIR_NAME" $$MW_URL	\
+		"$$MW_VERSION_MAJOR.$$MW_VERSION_MINOR"	"$$SERVER_ADDR:$$PORT" 		\
+		$$MW_TGZ $$TMP $$WIKI_DIR_NAME									&&	\
+	cp -r $$TMP/*.sqlite $$FILES_FOLDER/								&&	\
+	for t in $(T); do 														\
+		cd ${mkfileDir};													\
+		echo "$$t"; 														\
+		"./$$t" --verbose || ( stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG	\
+			$$PHP_ERROR_LOG $$MW_DEBUG_LOG; exit 1 )						\
+	done																&&	\
+	stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG $$PHP_ERROR_LOG				\
+		$$MW_DEBUG_LOG
 
 clean:
 	$(RM) -r 'trash directory'.*

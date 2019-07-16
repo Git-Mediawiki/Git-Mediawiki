@@ -16,6 +16,8 @@
 WIKI_URL=http://"$SERVER_ADDR:$PORT/$WIKI_DIR_NAME"
 CURR_DIR=$(pwd)
 TEST_OUTPUT_DIRECTORY=$(pwd)
+WEB_ERROR_LOG="$WEB_TMP/lighttpd.error.log"
+PHP_ERROR_LOG="$WEB_TMP/php_errors.log"
 
 export TEST_OUTPUT_DIRECTORY CURR_DIR
 
@@ -237,7 +239,7 @@ config_lighttpd () {
 	mkdir -p $WEB
 	mkdir -p $WEB_TMP
 	mkdir -p $WEB_WWW
-	rm -f "$WEB_TMP/lighttpd.error.log"
+
 	cat > $WEB/lighttpd.conf <<EOF
 	server.document-root = "$WEB_WWW"
 	server.port = $PORT
@@ -251,7 +253,7 @@ config_lighttpd () {
 	"mod_fastcgi"
 	)
 
-	server.errorlog = "$WEB_TMP/lighttpd.error.log"
+	server.errorlog = "$WEB_ERROR_LOG"
 
 	index-file.names = ("index.php" , "index.html")
 
@@ -321,6 +323,8 @@ config_lighttpd () {
 EOF
 
 	cat > $WEB/php.ini <<EOF
+	error_reporting = E_ALL
+	error_log = $PHP_ERROR_LOG
 	session.save_path ='$CURR_DIR/$WEB_TMP'
 EOF
 }
@@ -329,19 +333,33 @@ EOF
 #
 # Start or restart daemon lighttpd. If restart, rewrite configuration files.
 start_lighttpd () {
-	if test -f "$WEB_TMP/pid"; then
+	pid=$1 # $WEB_TMP/pid
+	path=$2 # $LIGHTTPD_DIR
+	confdir=$3 # $WEB
+	errorLog=$4 # $WEB_ERROR_LOG
+
+	if test -f "$pid"; then
 		echo "Instance already running. Restarting..."
 		stop_lighttpd
 	fi
 	config_lighttpd
-	"$LIGHTTPD_DIR"/lighttpd -f "$WEB"/lighttpd.conf
+	$path/lighttpd -f $confdir/lighttpd.conf
 
 	if test $? -ne 0 ; then
-		echo "Could not execute http deamon lighttpd. Error log:"
+		output_log $errorLog "Could not execute http deamon lighttpd. Error log:"
+	fi
+}
+
+output_log () {
+	logFile=$1
+	header=$2
+
+	if [ -f $logFile ]; then
+		echo $header
 		echo "**************************************************"
-		cat $WEB_TMP/lighttpd.error.log
+		cat $logFile
 		echo "**************************************************"
-		exit 1
+		rm -f $logFile
 	fi
 }
 
@@ -349,95 +367,123 @@ start_lighttpd () {
 #
 # Kill daemon lighttpd and removes files and folders associated.
 stop_lighttpd () {
-	test -f "$WEB_TMP/pid" && kill $(cat "$WEB_TMP/pid")
+	pid=$1 # $WEB_TMP/pid
+	errorLog=$2 # $WEB_ERROR_LOG
+	phpErrorLog=$3 # $PHP_ERROR_LOG
+	wikiDebugLog=$4 # $MW_DEBUG_LOG
+	test -f $pid && kill $(cat $pid)
+
+
+	output_log $errorLog "Output from lighttpd error log:"
+	output_log $phpErrorLog "Output from PHP error log:"
+	output_log $wikiDebugLog "MediaWiki debug log:"
 }
 
-
-# Install a wiki in your web server directory.
-wiki_install () {
-	if test $LIGHTTPD = "true" ; then
-		start_lighttpd
-	fi
-
-	SERVER_ADDR=$SERVER_ADDR:$PORT
-	# In this part, we change directory to $TMP in order to download,
-	# unpack and copy the files of MediaWiki
-	(
-	mkdir -p "$WIKI_DIR_INST/$WIKI_DIR_NAME"
-	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ] ; then
-		error "Folder $WIKI_DIR_INST/$WIKI_DIR_NAME doesn't exist.
-		Please create it and launch the script again."
-	fi
+download_if_needed () {
+	url=$1
+	ver=$2
+	dldir=$3
+	target=mediawiki-$ver.tar.gz
+	url=${url}/${target}
 
 	# Fetch MediaWiki's archive if not already present in the TMP directory
-	MW_FILENAME="mediawiki-$MW_VERSION_MAJOR.$MW_VERSION_MINOR.tar.gz"
-	cd "$TMP"
-	if [ ! -f $MW_FILENAME ] ; then
-		echo "Downloading $MW_VERSION_MAJOR.$MW_VERSION_MINOR sources ..."
-		wget "http://download.wikimedia.org/mediawiki/$MW_VERSION_MAJOR/$MW_FILENAME" ||
-			error "Unable to download "\
-			"http://download.wikimedia.org/mediawiki/$MW_VERSION_MAJOR/"\
-			"$MW_FILENAME. "\
-			"Please fix your connection and launch the script again."
-		echo "$MW_FILENAME downloaded in $(pwd). "\
-			"You can delete it later if you want."
-	else
-		echo "Reusing existing $MW_FILENAME downloaded in $(pwd)."
-	fi
-	archive_abs_path=$(pwd)/$MW_FILENAME
-	cd "$WIKI_DIR_INST/$WIKI_DIR_NAME/" ||
-		error "can't cd to $WIKI_DIR_INST/$WIKI_DIR_NAME/"
-	tar xzf "$archive_abs_path" --strip-components=1 ||
-		error "Unable to extract WikiMedia's files from $archive_abs_path to "\
-			"$WIKI_DIR_INST/$WIKI_DIR_NAME"
-	) || exit 1
+	cd "$dldir" && (
+		if [ ! -f $target ] ; then
+			echo "Downloading $ver sources ..."
+			wget $url || error "Unable to download $url :"					\
+							   "Please fix your connection and launch the"	\
+							   "script again."
+			echo "$tgz downloaded in $dldir."
+		else
+			echo "Reusing existing $target downloaded in $dldir."
+		fi
+	)
+}
 
-	create_db
+copy_localsettings () {
+	from=$1
+	to=$2
+	dir=$3 # $WIKI_DIR_NAME
+	server=$4 # $SERVER_ADDR
+	dbDir=$5 # $TMP
 
 	# Copy the generic LocalSettings.php in the web server's directory
 	# And modify parameters according to the ones set at the top
 	# of this script.
 	# Note that LocalSettings.php is never modified.
-	if [ ! -f "$FILES_FOLDER/LocalSettings.php" ] ; then
-		error "Can't find $FILES_FOLDER/LocalSettings.php " \
-			"in the current folder. "\
-		"Please run the script inside its folder."
+	if [ ! -f "$from" ] ; then
+		error "Can't find $from in the current folder. "\
+			  "Please run the script inside its folder."
 	fi
-	cp "$FILES_FOLDER/LocalSettings.php" \
-		"$FILES_FOLDER/LocalSettings-tmp.php" ||
-		error "Unable to copy $FILES_FOLDER/LocalSettings.php " \
-		"to $FILES_FOLDER/LocalSettings-tmp.php"
+	cp "$from" "$to" || error "Unable to copy $from to $to"
 
 	# Parse and set the LocalSettings file of the user according to the
 	# CONFIGURATION VARIABLES section at the beginning of this script
-	file_swap="$FILES_FOLDER/LocalSettings-swap.php"
-	sed "s,@WG_SCRIPT_PATH@,/$WIKI_DIR_NAME," \
-		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
-	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
-	sed "s,@WG_SERVER@,http://$SERVER_ADDR," \
-		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
-	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
-	sed "s,@WG_SQLITE_DATADIR@,$TMP," \
-		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
-	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
-	sed "s,@WG_SQLITE_DATAFILE@,$( basename $DB_FILE .sqlite)," \
-		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
-	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
+	sed -i "s,@WG_SCRIPT_PATH@,/$dir," "$to" 							||	\
+		error "failed replacing WG_SCRIPT_PATH"
+	sed -i "s,@WG_SERVER@,http://$server," "$to" 						||	\
+		error "failed replacing WG_SERVER"
+	sed -i "s,@WG_SQLITE_DATADIR@,$dbDir," "$to"						||	\
+		error "failed replacing WG_SQLITE_DATADIR"
+	sed -i "s,@WG_SQLITE_DATAFILE@,$(basename $DB_FILE .sqlite)," "$to" ||	\
+		error "failed replacing WG_SQLITE_DATAFILE"
+	echo "File $from is set in $base"
+}
 
-	mv "$FILES_FOLDER/LocalSettings-tmp.php" \
-		"$WIKI_DIR_INST/$WIKI_DIR_NAME/LocalSettings.php" ||
-		error "Unable to move $FILES_FOLDER/LocalSettings-tmp.php" \
-		"in $WIKI_DIR_INST/$WIKI_DIR_NAME"
-	echo "File $FILES_FOLDER/LocalSettings.php is set in" \
-		" $WIKI_DIR_INST/$WIKI_DIR_NAME"
+setup_dir () {
+	dir=$1
 
-	echo "Your wiki has been installed. You can check it at
-		http://$SERVER_ADDR/$WIKI_DIR_NAME"
+	mkdir -p "$dir"
+	if [ ! -d "$dir" ] ; then
+		error "Folder $dir doesn't exist."									\
+			  "Please create it and launch the script again."
+	fi
+}
+
+create_db () {
+	installDir=$1
+	dbDir=$2
+	path=$3
+	rm -f $dbDir/*.sqlite
+
+	echo CREDENTIALS: $WIKI_ADMIN $WIKI_PASSW
+	cd $installDir														&&	\
+		php maintenance/install.php --dbtype=sqlite --dbpath="$dbDir"		\
+			--scriptpath=$path --pass=$WIKI_PASSW wiki $WIKI_ADMIN
+	echo '$wgDebugLogFile = "'$MW_DEBUG_LOG'";' >> LocalSettings.php
+}
+
+# Install a wiki in your web server directory.
+wiki_install () {
+	files=$1          # $FILES_FOLDER
+	dir=$2            # $WIKI_DIR_INST/$WIKI_DIR_NAME
+	url=$3            # $MW_URL
+	ver=$4            # "$MW_VERSION_MAJOR.$MW_VERSION_MINOR"
+	server=$5         # $SERVER_ADDR:$PORT
+	tgz=$6            # $MW_TGZ
+	tmp=$7			  # $TMP
+	path=$8			  # $WIKI_DIR_NAME
+
+	# In this part, we change directory to $TMP in order to download,
+	# unpack and copy the files of MediaWiki
+	(
+		setup_dir $dir
+		download_if_needed $url $ver $tmp
+		archive_abs_path=$(pwd)/$tgz
+		tar -C $dir -xzf "$archive_abs_path" --strip-components=1 ||
+			error "Unable to extract MediaWiki's files from"				\
+					"$archive_abs_path to $dir"
+	) || exit 1
+
+	create_db $dir $tmp $path
+
+	echo "Your wiki has been installed: http://$server/$path"
 }
 
 # Reset the database of the wiki and the password of the admin
 #
-# Warning: This function must be called only in a subdirectory of t/ directory
+# Warning: This function must be called only in a subdirectory of t/
+# directory
 wiki_reset () {
 	# Copy initial database of the wiki
 	if [ ! -f "$FILES_FOLDER/$DB_FILE" ] ; then

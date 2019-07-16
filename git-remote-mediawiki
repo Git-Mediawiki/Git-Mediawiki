@@ -547,7 +547,7 @@ sub get_last_local_revision {
 
 	my $lastrevision_number;
 	if (!defined $note) {
-		warn "No previous mediawiki revision found.";
+		warn "No previous mediawiki revision found.\n";
 		$lastrevision_number = 0;
 	} else {
 		my @note_info = split(/ /, $note);

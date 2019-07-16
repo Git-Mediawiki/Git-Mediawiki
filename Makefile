@@ -20,6 +20,11 @@ files ?= ${mkfileDir}/files
 GIT_MEDIAWIKI_PM=Git/Mediawiki.pm
 SCRIPT_PERL=${files}/git-remote-mediawiki
 SCRIPT_PERL+=${files}/git-mw
+MW_VERSION_MAJOR ?= 1.33
+MW_VERSION_MINOR ?= 0
+MW_TGZ ?= mediawiki-${MW_VERSION_MAJOR}.${MW_VERSION_MINOR}.tar.gz
+MW_URLBASE ?= https://releases.wikimedia.org/mediawiki
+MW_URL ?= ${MW_URLBASE}/${MW_VERSION_MAJOR}/${MW_TGZ}
 
 INSTALL = install
 
@@ -28,9 +33,11 @@ INSTLIBDIR=$(PREFIX)/share/perl5/
 DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
 INSTLIBDIR_SQ = $(subst ','\'',$(INSTLIBDIR))
 
+default:
+	echo MW_TGZ=${MW_TGZ}
+
 test:
 	$(MAKE) -C /t
-#/usr/local/lib/perl5/site_perl/5.30.0/DateTime/Format/ISO8601.pm
 
 check: perlcritic test
 
@@ -47,9 +54,14 @@ perlcritic:
 	-perlcritic -2 $(SCRIPT_PERL)
 
 dockerBuild:
-	docker build -t mabs .
+	docker build -t mabs .													\
+		--build-arg MW_VERSION_MAJOR=${MW_VERSION_MAJOR}					\
+		--build-arg MW_VERSION_MINOR=${MW_VERSION_MINOR}					\
+		--build-arg MW_TGZ=${MW_TGZ}										\
+		--build-arg MW_URLBASE=${MW_URLBASE}								\
+		--build-arg MW_URL=${MW_URL}
 
 docker:
-	docker run -v `pwd`/WEB:/WEB -v `pwd`/t:/t mabs ${CMD}
+	docker run --rm -v `pwd`/WEB:/WEB -v `pwd`/t:/t mabs ${CMD}
 
 .PHONY: all test check install_pm install clean perlcritic

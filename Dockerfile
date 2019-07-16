@@ -3,20 +3,21 @@
 
 FROM perl-php-git
 
-ENV MWURL=https://releases.wikimedia.org/mediawiki/1.33/mediawiki-1.33.0.tar.gz
+ARG MW_VERSION_MAJOR=1.33
+ARG MW_VERSION_MINOR=0
+ARG MW_TGZ=mediawiki-${MW_VERSION_MAJOR}.${MW_VERSION_MINOR}.tar.gz
+ARG MW_URLBASE=https://releases.wikimedia.org/mediawiki
+ARG MW_URL=${MW_URLBASE}/${MW_VERSION_MAJOR}/${MW_TGZ}
 
-RUN mkdir -p /wiki/var/lighttpd					\
-	/wiki/db /wiki/www /wiki/log &&				\
-	chmod 1777 /wiki/db /wiki/log				\
-	/wiki/var/lighttpd
+RUN mkdir -p /wiki/var/lighttpd	/wiki/db /wiki/www /wiki/log &&	\
+	chmod 1777 /wiki/db /wiki/log /wiki/var/lighttpd
 
-RUN wget -O /wiki/mediawiki.tar.gz ${MWURL}		\
-	&& tar -C /wiki/www --strip-components=1 -xzf /wiki/mediawiki.tar.gz
+RUN wget -O /wiki/db/${MW_TGZ} ${MW_URL}						\
+	&& tar -C /wiki/www --strip-components=1 -xzf /wiki/db/${MW_TGZ}
 
-RUN cd /wiki/www								\
-	&& php maintenance/install.php				\
-		--dbtype=sqlite --dbpath=/wiki/db		\
-		--scriptpath=/ --pass=none1234			\
+RUN cd /wiki/www												\
+	&& php maintenance/install.php --dbtype=sqlite				\
+		--dbpath=/wiki/db --scriptpath=/ --pass=none1234		\
 		wiki admin
 
 COPY Makefile /

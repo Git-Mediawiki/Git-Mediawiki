@@ -7,6 +7,6 @@ cd /WEB
 test -f mediawiki-1.32.1.tar.gz || wget https://releases.wikimedia.org/mediawiki/1.32/mediawiki-1.32.1.tar.gz
 cd /WEB/www/
 test -f index.php || tar --strip-components=1 -xzf /WEB/mediawiki-1.32.1.tar.gz
-test -f LocalSettings.php || 
+test -f LocalSettings.php ||
 cd /
 make test
