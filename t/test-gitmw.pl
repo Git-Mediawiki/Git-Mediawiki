@@ -55,7 +55,7 @@ sub wiki_login {
   my ($user, $pass) = @_;
 
   $mw->login( { lgname => "$user",lgpassword => "$pass" } )
-	|| report_error( $mw, "login failed" );
+	|| report_error( $mw, 'login failed' );
 }
 
 # wiki_getpage <wiki_page> <dest_path>
