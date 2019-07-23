@@ -154,6 +154,11 @@ sub remote_url {
     return $self->{remote_url};
 }
 
+sub wiki_name {
+	my $self = shift;
+    return $self->{wiki_name};
+}
+
 sub remotename {
     my $self = shift;
     return $self->{remote_name};
@@ -192,6 +197,11 @@ sub pages {
 sub dumb_push {
     my $self = shift;
     return $self->{dumb_push};
+}
+
+sub fetch_strategy {
+    my $self = shift;
+    return $self->{fetch_strategy};
 }
 
 sub basetimestamp {
@@ -257,7 +267,7 @@ sub get_namespace_id {
 
     if ( !defined $self->namespace_id($name) ) {
         $self->to_user->print(
-            "Namespace ${name} not found in cache, querying the wiki ...\n");
+            "Namespace $name not found in cache, querying the wiki ...\n");
         $self->query_namespace_id($name);
     }
 
@@ -518,6 +528,15 @@ sub new {
         $self->{dumb_push} = $self->repo->config_bool('mediawiki.dumbPush');
     }
 
+	my $wiki_name = $self->remote_url;
+	$wiki_name =~ s{[^/]*://}{}smx;
+
+	# If URL is like http://user:password@example.com/, we clearly don't
+	# want the password in $wiki_name. While we're there, also remove user
+	# and '@' sign, to avoid author like MWUser@HTTPUser@host.com
+	$wiki_name =~ s/^.*@//smx;
+	$self->{wiki_name} = $wiki_name;
+
     $self->{ua}->ssl_opts( $self->get_ssl_opts );
     $self->{ua}->agent( "git-mediawiki/$VERSION " . $self->{ua}->agent() );
     $self->{ua}->conn_cache( { total_capacity => undef } );
@@ -650,6 +669,11 @@ sub get_allowed_file_extensions {
 sub get_pages {
     my ($self) = shift;
 
+	# Don't fetch twice
+	if ( $self->pages ) {
+		return $self->pages;
+	}
+
     $self->to_user->print("Listing pages on remote wiki...\n");
 
     my $user_defined;
@@ -693,16 +717,17 @@ sub get_pages {
 # Get the last remote revision concerning the tracked pages and the tracked
 # categories.
 sub get_last_remote_revision {
-    my $self = shift;
-
-    $self->get_pages();
+    my $self        = shift;
     my $max_rev_num = 0;
 
     $self->to_user->print("Getting last revision id on tracked pages...\n");
 
-    foreach my $page ( $self->pages ) {
+  PAGE:
+    foreach my $page ( $self->get_pages ) {
         my $id = $page->{pageid};
-
+        if ( !defined $id ) {
+            next PAGE;
+        }
         my $query = {
             action  => 'query',
             prop    => 'revisions',
@@ -730,11 +755,11 @@ sub get_last_remote_revision {
 sub import_ref_by_revs {
     my $self       = shift;
     my $fetch_from = shift;
-    my %pages_hash = $self->get_pages();
+    my $pages = $self->get_pages();
 
     my $last_remote  = $self->get_last_global_remote_rev();
-    my @revision_ids = $fetch_from .. $last_remote;
-    return $self->import_revids( $fetch_from, \@revision_ids, \%pages_hash );
+    my $revision_ids = [ $fetch_from .. $last_remote ];
+    return $self->import_revids( $fetch_from, $revision_ids, $pages );
 }
 
 # Import revisions given in second argument (array of integers).
@@ -831,7 +856,7 @@ sub import_revids {
         $self->to_user->print( "${n}/"
               . scalar( @{$revision_ids} )
               . ": Revision #$rev->{revid} of $commit{title}\n" );
-        import_file_revision( \%commit, ( $fetch_from == 1 ),
+        $self->import_file_revision( \%commit, ( $fetch_from == 1 ),
             $n_actual, \%mediafile );
     }
 
@@ -902,7 +927,8 @@ sub push_file {
     my $page_deleted = ( $new_sha1 eq $NULL_SHA1 );
     $complete_file_name = $self->clean_filename($complete_file_name);
 
-    my ( $title, $extension ) = $complete_file_name =~ /^(.*?).?([^.]*)$/smx;
+    my ( $title, $extension ) =
+	  $complete_file_name =~ /^(.*?).?([^.]*)$/smx;
     if ( !defined $extension ) {
         $extension = $EMPTY;
     }
@@ -1059,9 +1085,9 @@ sub find_path_to_commit {
 Cannot find a path in history from remote commit to last commit
 
 EOF
-            return error_non_fast_forward($remote);
+            return $self->error_non_fast_forward($remote);
         }
-        return ( $parsed_sha1, $child );
+        return [ $parsed_sha1, $child ];
     }
     return;
 }
@@ -1075,7 +1101,8 @@ sub get_entire_history {
     $self->to_user->print(
         "Warning: no common ancestor, pushing complete history\n");
     my $history =
-      $self->repo->command("rev-list --first-parent --children ${local}");
+      $self->repo->command(
+        [ 'rev-list', '--first-parent', '--children', $local ] );
     my @history = split /\n/smx, $history;
     @history = @history[ 1 .. $#history ];
     my @ret;
@@ -1101,9 +1128,12 @@ sub push_revision {
       $self->repo->command( [ 'rev-parse', $local ], STDERR => 0 );
 
     # Get sha1 of commit pointed by remotes/$remotename/master
-    my $remoteorigin_sha1 = $self->repo->command(
-        [ 'rev-parse', 'refs/remotes/' . $self->remotename . '/master' ],
-        STDERR => 0 );
+    chomp(
+        my $remoteorigin_sha1 = $self->repo->command(
+            [ 'rev-parse', 'refs/remotes/' . $self->remotename . '/master' ],
+            STDERR => 0
+        )
+    );
 
     if ( $last_local_revid > 0 && $last_local_revid < $last_remote_revid ) {
         return $self->error_non_fast_forward($remote);
@@ -1141,7 +1171,8 @@ sub push_commits {
         my $sha1_child = @{$commit_info_split}[0];
         my $sha1       = @{$commit_info_split}[1];
         my $diff_infos =
-          $self->repo->command("diff-tree -r --raw -z ${sha1_child} ${sha1}");
+          $self->repo->command(
+            [ 'diff-tree', '-r', '--raw', '-z', ${sha1_child}, ${sha1} ] );
 
         # TODO: we could detect rename, and encode them with a #redirect
         # TODO: on the wiki. For now, it's just a delete+add
@@ -1150,7 +1181,8 @@ sub push_commits {
         # Keep the subject line of the commit message as mediawiki comment
         # for the revision
         my $commit_msg =
-          $self->repo->command(qq(log --no-walk --format="%s" ${sha1}));
+          $self->repo->command(
+            [ 'log', '--no-walk', '--format="%s"', ${sha1} ] );
         chomp $commit_msg;
 
         # Push every blob
@@ -1184,16 +1216,16 @@ sub push_every_blob {
             # late to cancel it. Stop the push in
             # the middle, but still give an
             # accurate error message.
-            return error_non_fast_forward($remote);
+            return $self->error_non_fast_forward($remote);
         }
         if ( $status ne 'ok' ) {
             die "Unknown error from mw_push_file()\n";
         }
         if ( !$self->dumb_push ) {
-            $self->repo->command( 'notes --ref='
-                  . $self->remotename
-                  . '/mediawiki add -f -m '
-                  . qq("mediawiki_revision: ${mw_revision}" ${sha1}) );
+            $self->repo->command(
+                [ 'notes', '--ref=' . $self->remotename . '/mediawiki',
+				  'add', '-f', '-m', qq(mediawiki_revision: $mw_revision),
+				  $sha1 ] );
         }
     }
     return;
@@ -1203,608 +1235,610 @@ sub get_tracked_categories {
     my ( $self, $pages ) = @_;
     foreach my $category ( $self->tracked_categories ) {
         if ( index( $category, q{:} ) < 0 ) {
-
             # Mediawiki requires the Category
             # prefix, but let's not force the user
-            # to specify it.
-            $category = "Category:${category}";
-        }
-        my $mw_pages = $self->list(
-            {
-                action  => 'query',
-                list    => 'categorymembers',
-                cmtitle => $category,
-                cmlimit => 'max'
-            }
-          )
-          or die $self->{error}->{code} . ': '
-          . $self->{error}->{details} . "\n";
-        foreach my $page ( @{$mw_pages} ) {
-            $pages->{ $page->{title} } = $page;
-        }
-    }
-    return;
+			# to specify it.
+			$category = "Category:${category}";
+		}
+		my $mw_pages = $self->list(
+			{
+				action  => 'query',
+				list    => 'categorymembers',
+				cmtitle => $category,
+				cmlimit => 'max'
+			}
+		  )
+		  or die $self->{error}->{code} . ': '
+		  . $self->{error}->{details} . "\n";
+		foreach my $page ( @{$mw_pages} ) {
+			$pages->{ $page->{title} } = $page;
+		}
+	}
+	return;
 }
 
 sub get_tracked_namespaces {
-    my ( $self, $pages ) = @_;
-    foreach my $local_namespace ( $self->tracked_namespaces ) {
-        my $namespace_id;
-        if ( $local_namespace eq '(Main)' or scalar $local_namespace == 0 ) {
-            $namespace_id = 0;
-        }
-        else {
-            $namespace_id = $self->get_namespace_id($local_namespace);
-        }
+	my ( $self, $pages ) = @_;
+	foreach my $local_namespace ( $self->tracked_namespaces ) {
+		my $namespace_id;
+		if ( $local_namespace eq '(Main)'
+			 or scalar $local_namespace == 0 ) {
+			$namespace_id = 0;
+		} else {
+			$namespace_id = $self->get_namespace_id($local_namespace);
+		}
 
-        # virtual namespaces don't support allpages
-        next if !defined($namespace_id) || $namespace_id < 0;
-        my $mw_pages = $self->list(
-            {
-                action      => 'query',
-                list        => 'allpages',
-                apnamespace => $namespace_id,
-                aplimit     => 'max'
-            }
-          )
-          || die $self->{error}->{code} . ': '
-          . $self->{error}->{details} . "\n";
-        $self->to_user->print(
-                "$#{$mw_pages} found in namespace $local_namespace "
-              . "($namespace_id)\n" );
-        foreach my $page ( @{$mw_pages} ) {
-            $pages->{ $page->{title} } = $page;
-        }
-    }
-    return;
+		# virtual namespaces don't support allpages
+		next if !defined($namespace_id) || $namespace_id < 0;
+		my $mw_pages = $self->list(
+			{
+				action      => 'query',
+				list        => 'allpages',
+				apnamespace => $namespace_id,
+				aplimit     => 'max'
+			}
+		  )
+		  || die $self->{error}->{code} . ': '
+		  . $self->{error}->{details} . "\n";
+		$self->to_user->print(
+			"$#{$mw_pages} found in namespace $local_namespace "
+			. "($namespace_id)\n" );
+		foreach my $page ( @{$mw_pages} ) {
+			$pages->{ $page->{title} } = $page;
+		}
+	}
+	return;
 }
 
 sub get_all_pages {
-    my ($self) = @_;
+	my ($self) = @_;
 
-    # No user-provided list, get the list of pages from the API.
-    my $mw_pages = $self->list(
-        {
-            action  => 'query',
-            list    => 'allpages',
-            aplimit => 'max'
-        }
-    );
-    if ( !defined $mw_pages ) {
-        $self->fatal_error('get the list of wiki pages');
-    }
-    foreach my $page ( @{$mw_pages} ) {
-        $self->{pages}->{ $page->{title} } = $page;
-    }
-    return $self->pages;
+	# No user-provided list, get the list of pages from the API.
+	my $mw_pages = $self->list(
+		{
+			action  => 'query',
+			list    => 'allpages',
+			aplimit => 'max'
+		}
+	  );
+	if ( !defined $mw_pages ) {
+		$self->fatal_error('get the list of wiki pages');
+	}
+	foreach my $page ( @{$mw_pages} ) {
+		$self->{pages}->{ $page->{title} } = $page;
+	}
+
+	return $self->pages;
 }
 
 # queries the wiki for a set of pages. Meant to be used within a loop
 # querying the wiki for slices of page list.
 sub get_first_pages {
-    my $self       = shift;
-    my $some_pages = shift;
-    my @some_pages = @{$some_pages};
+	my $self       = shift;
+	my $some_pages = shift;
+	my @some_pages = @{$some_pages};
 
-    my $pages = shift;
+	my $pages = shift;
 
-    # pattern 'page1|page2|...' required by the API
-    my $titles = join q{|}, @some_pages;
+	# pattern 'page1|page2|...' required by the API
+	my $titles = join q{|}, @some_pages;
 
-    my $mw_pages = $self->api(
-        {
-            action => 'query',
-            titles => $titles,
-        }
-    );
-    if ( !defined $mw_pages ) {
-        $self->fatal_error('query the list of wiki pages');
-    }
-    while ( my ( $id, $page ) = each %{ $mw_pages->{query}->{pages} } ) {
-        if ( $id < 0 ) {
-            $self->to_user->print(
-                "Warning: page $page->{title} not found on wiki\n");
-        }
-        else {
-            $pages->{ $page->{title} } = $page;
-        }
-    }
-    return;
+	my $mw_pages = $self->api(
+		{
+			action => 'query',
+			titles => $titles,
+		}
+	  );
+	if ( !defined $mw_pages ) {
+		$self->fatal_error('query the list of wiki pages');
+	}
+	while ( my ( $id, $page ) = each %{ $mw_pages->{query}->{pages} } ) {
+		if ( $id < 0 ) {
+			$self->to_user->print(
+				"Warning: page $page->{title} not found on wiki\n");
+		} else {
+			$pages->{ $page->{title} } = $page;
+		}
+	}
+	return;
 }
 
 sub parse_command {
-    my ( $self, $line ) = @_;
+	my ( $self, $line ) = @_;
 
-    my @arg = split /[ ]/smx, $line;
-    if ( !defined $arg[0] ) {
-        return 0;
-    }
-    my $cmd    = shift @arg;
-    my $lookup = {
-        'capabilities' => 0,
-        'list'         => 1,
-        'import'       => 1,
-        'option'       => 2,
-        'push'         => 1,
-    };
+	my @arg = split / /sm, $line;
+	if ( !defined $arg[0] ) {
+		return 0;
+	}
+	my $cmd    = shift @arg;
+	my $lookup = {
+		'capabilities' => 0,
+		'list'         => 1,
+		'import'       => 1,
+		'option'       => 2,
+		'push'         => 1,
+	};
 
-    if ( exists $lookup->{$cmd} ) {
-        my $count = $lookup->{$cmd};
-        if ( scalar @arg > $lookup->{$cmd} ) {
-            die "Too many arguments for $cmd\n";
-        }
-        my $cmd_method = "cmd_$cmd";
-        $self->$cmd_method(@arg);
-    }
-    else {
-        $self->to_user->print("Unknown command ($cmd). Aborting...\n");
-        return 0;
-    }
-    return 1;
+	if ( exists $lookup->{$cmd} ) {
+		my $count = $lookup->{$cmd};
+		if ( scalar @arg > $lookup->{$cmd} ) {
+			die "Too many arguments for $cmd\n";
+		}
+		my $cmd_method = "cmd_$cmd";
+		$self->$cmd_method(@arg);
+	} else {
+		$self->to_user->print("Unknown command ($cmd). Aborting...\n");
+		return 0;
+	}
+	return 1;
 }
 
 sub fatal_error {
-    my $self   = shift;
-    my $action = shift;
-    my $url    = $self->url;
+	my $self   = shift;
+	my $action = shift;
+	my $url    = $self->url;
 
-    $self->to_user->print("fatal: could not $action.\n");
-    $self->to_user->print("fatal: '$url' does not appear to be a mediawiki\n");
-    if ( $url =~ /^https/smx ) {
-        $self->to_user->print(
-            "fatal: make sure '$url/api.php' is a valid page\n");
-        $self->to_user->print(
-            "fatal: and the SSL certificate is correct or set\n");
-        $self->to_user->print(
-            "fatal: the appropriate environment variables or flags.\n");
-    }
-    else {
-        $self->to_user->print(
-            "fatal: make sure '$url/api.php' is a valid page.\n");
-    }
-    $self->to_user->print(
-        sprintf(
-            'fatal: (error %s:%s)',
-            $self->{error}->{code},
-            $self->{error}->{details}
-          )
-          . "\n"
-    );
-    exit 1;
+	$self->to_user->print("fatal: could not $action.\n");
+	$self->to_user->print(
+		"fatal: '$url' does not appear to be a mediawiki\n");
+	if ( $url =~ /^https/smx ) {
+		$self->to_user->print(
+			"fatal: make sure '$url/api.php' is a valid page\n");
+		$self->to_user->print(
+			"fatal: and the SSL certificate is correct or set\n");
+		$self->to_user->print(
+			"fatal: the appropriate environment variables or flags.\n");
+	} else {
+		$self->to_user->print(
+			"fatal: make sure '$url/api.php' is a valid page.\n");
+	}
+	$self->to_user->print(
+		sprintf(
+			'fatal: (error %s:%s)',
+			$self->{error}->{code},
+			$self->{error}->{details}
+		  )
+		. "\n"
+	  );
+	exit 1;
 }
 
 ## Functions for listing pages on the remote wiki
 sub get_tracked_pages {
-    my ( $self, $pages ) = @_;
+	my ( $self, $pages ) = @_;
 
-    return $self->get_page_list($pages);
+	return $self->get_page_list($pages);
 }
 
 sub get_page_list {
-    my ( $self, $page_list, $pages );
+	my ( $self, $page_list, $pages );
 
-    my @some_pages = @{$page_list};
-    while (@some_pages) {
-        my $last_page = $SLICE_SIZE;
-        if ( $#some_pages < $last_page ) {
-            $last_page = $#some_pages;
-        }
-        my @slice = @some_pages[ 0 .. $last_page ];
-        $self->get_first_pages( \@slice, $pages );
-        @some_pages = @some_pages[ ( $SLICE_SIZE + 1 ) .. $#some_pages ];
-    }
-    return @some_pages;
+	my @some_pages = @{$page_list};
+	while (@some_pages) {
+		my $last_page = $SLICE_SIZE;
+		if ( $#some_pages < $last_page ) {
+			$last_page = $#some_pages;
+		}
+		my @slice = @some_pages[ 0 .. $last_page ];
+		$self->get_first_pages( \@slice, $pages );
+		@some_pages =
+		  @some_pages[ ( $SLICE_SIZE + 1 ) .. $#some_pages ];
+	}
+	return @some_pages;
 }
 
 sub get_all_mediafiles {
-    my ( $self, $pages ) = @_;
+	my ( $self, $pages ) = @_;
 
-    # Attach list of all pages for media files from the API,
-    # they are in a different namespace, only one namespace
-    # can be queried at the same moment
-    my $mw_pages = $self->list(
-        {
-            action      => 'query',
-            list        => 'allpages',
-            apnamespace => $self->get_namespace_id('File'),
-            aplimit     => 'max'
-        }
-    );
-    if ( !defined $mw_pages ) {
-        my $url = $self->url;
-        $self->to_user->print(<<"EOF");
+	# Attach list of all pages for media files from the API,
+	# they are in a different namespace, only one namespace
+	# can be queried at the same moment
+	my $mw_pages = $self->list(
+		{
+			action      => 'query',
+			list        => 'allpages',
+			apnamespace => $self->get_namespace_id('File'),
+			aplimit     => 'max'
+		}
+	  );
+	if ( !defined $mw_pages ) {
+		my $url = $self->url;
+		$self->to_user->print(<<"EOF");
 fatal: could not get the list of pages for media files.
 fatal: '$url' does not appear to be a mediawiki
 fatal: make sure '$url/api.php' is a valid page.
 EOF
-        exit 1;
-    }
-    foreach my $page ( @{$mw_pages} ) {
-        $pages->{ $page->{title} } = $page;
-    }
-    return;
+		exit 1;
+	}
+	foreach my $page ( @{$mw_pages} ) {
+		$pages->{ $page->{title} } = $page;
+	}
+	return;
 }
 
 sub get_linked_mediafiles {
-    my ( $self, $pages ) = @_;
-    my @titles = map { $_->{title} } values %{$pages};
+	my ( $self, $pages ) = @_;
+	my @titles = map { $_->{title} } values %{$pages};
 
-    my $batch = $BATCH_SIZE;
-    while (@titles) {
-        if ( $#titles < $batch ) {
-            $batch = $#titles;
-        }
-        my @slice = @titles[ 0 .. $batch ];
+	my $batch = $BATCH_SIZE;
+	while (@titles) {
+		if ( $#titles < $batch ) {
+			$batch = $#titles;
+		}
+		my @slice = @titles[ 0 .. $batch ];
 
-        # pattern 'page1|page2|...' required by the API
-        my $mw_titles = join q{|}, @slice;
+		# pattern 'page1|page2|...' required by the API
+		my $mw_titles = join q{|}, @slice;
 
-        # Media files could be included or linked from
-        # a page, get all related
-        my $query = {
-            action      => 'query',
-            prop        => 'links|images',
-            titles      => $mw_titles,
-            plnamespace => $self->get_namespace_id('File'),
-            pllimit     => 'max'
-        };
-        my $result = $self->api($query);
+		# Media files could be included or linked from
+		# a page, get all related
+		my $query = {
+			action      => 'query',
+			prop        => 'links|images',
+			titles      => $mw_titles,
+			plnamespace => $self->get_namespace_id('File'),
+			pllimit     => 'max'
+		};
+		my $result = $self->api($query);
 
-        while ( my ( $id, $page ) = each %{ $result->{query}->{pages} } ) {
-            my @media_titles;
-            if ( defined( $page->{links} ) ) {
-                my @link_titles =
-                  map { $_->{title} } @{ $page->{links} };
-                push @media_titles, @link_titles;
-            }
-            if ( defined( $page->{images} ) ) {
-                my @image_titles =
-                  map { $_->{title} } @{ $page->{images} };
-                push @media_titles, @image_titles;
-            }
-            if (@media_titles) {
-                $self->page_list( \@media_titles, $pages );
-            }
-        }
+		while ( my ( $id, $page ) =
+				each %{ $result->{query}->{pages} } ) {
+			my @media_titles;
+			if ( defined( $page->{links} ) ) {
+				my @link_titles =
+				  map { $_->{title} } @{ $page->{links} };
+				push @media_titles, @link_titles;
+			}
+			if ( defined( $page->{images} ) ) {
+				my @image_titles =
+				  map { $_->{title} } @{ $page->{images} };
+				push @media_titles, @image_titles;
+			}
+			if (@media_titles) {
+				$self->page_list( \@media_titles, $pages );
+			}
+		}
 
-        @titles = @titles[ ( $batch + 1 ) .. $#titles ];
-    }
-    return;
+		@titles = @titles[ ( $batch + 1 ) .. $#titles ];
+	}
+	return;
 }
 
 sub get_mediafile_for_page_revision {
-    my $self = shift;
+	my $self = shift;
 
-    # Name of the file on Wiki, with the prefix.
-    my $filename  = shift;
-    my $timestamp = shift;
-    my %mediafile;
+	# Name of the file on Wiki, with the prefix.
+	my $filename  = shift;
+	my $timestamp = shift;
+	my %mediafile;
 
-    # Search if on a media file with given timestamp exists on
-    # MediaWiki. In that case download the file.
-    my $query = {
-        action  => 'query',
-        prop    => 'imageinfo',
-        titles  => "File:${filename}",
-        iistart => $timestamp,
-        iiend   => $timestamp,
-        iiprop  => 'timestamp|archivename|url',
-        iilimit => 1
-    };
-    my $result = $self->api($query);
+	# Search if on a media file with given timestamp exists on
+	# MediaWiki. In that case download the file.
+	my $query = {
+		action  => 'query',
+		prop    => 'imageinfo',
+		titles  => "File:${filename}",
+		iistart => $timestamp,
+		iiend   => $timestamp,
+		iiprop  => 'timestamp|archivename|url',
+		iilimit => 1
+	};
+	my $result = $self->api($query);
 
-    my ( $fileid, $file ) = each %{ $result->{query}->{pages} };
+	my ( $fileid, $file ) = each %{ $result->{query}->{pages} };
 
-    # If not defined it means there is no revision of the file for
-    # given timestamp.
-    if ( defined( $file->{imageinfo} ) ) {
-        my $fileinfo = pop @{ $file->{imageinfo} };
+	# If not defined it means there is no revision of the file for
+	# given timestamp.
+	if ( defined( $file->{imageinfo} ) ) {
+		my $fileinfo = pop @{ $file->{imageinfo} };
 
-        # Mediawiki::API's download function doesn't support https URLs
-        # and can't download old versions of files.
-        $self->to_user->print( "\tDownloading file $filename, "
-              . "version $fileinfo->{timestamp}\n" );
-        my $content = $self->download_mediafile( $fileinfo->{url} );
-        if ( defined $content ) {
-            $mediafile{content}   = $content;
-            $mediafile{title}     = $filename;
-            $mediafile{timestamp} = $fileinfo->{timestamp};
-        }
-        else {
-            $self->to_user->print(
-                "\tFAILED downloading $fileinfo->{url}! Skipping!\n");
-        }
-    }
-    return %mediafile;
+		# Mediawiki::API's download function doesn't support https URLs
+		# and can't download old versions of files.
+		$self->to_user->print( "\tDownloading file $filename, "
+							 . "version $fileinfo->{timestamp}\n" );
+		my $content = $self->download_mediafile( $fileinfo->{url} );
+		if ( defined $content ) {
+			$mediafile{content}   = $content;
+			$mediafile{title}     = $filename;
+			$mediafile{timestamp} = $fileinfo->{timestamp};
+		} else {
+			$self->to_user->print(
+				"\tFAILED downloading $fileinfo->{url}! Skipping!\n");
+		}
+	}
+	return %mediafile;
 }
 
 sub download_mediafile {
-    my $self         = shift;
-    my $download_url = shift;
-    my $url          = $self->url;
-    my $wiki_name    = $self->wiki_name;
+	my $self         = shift;
+	my $download_url = shift;
+	my $url          = $self->url;
+	my $wiki_name    = $self->wiki_name;
 
-    my $response = $self->{ua}->get($download_url);
-    if ( $response->code == $HTTP_CODE_OK ) {
+	my $response = $self->{ua}->get($download_url);
+	if ( $response->code == $HTTP_CODE_OK ) {
 
-        # It is tempting to return
-        # $response->decoded_content({charset => "none"}), but
-        # when doing so, utf8::downgrade($content) fails with
-        # "Wide character in subroutine entry".
-        $response->decode();
-        return $response->content();
-    }
-    elsif ( ( $download_url !~ /^\Q$url\E/smx )
-        and ( $download_url =~ m{\Q$wiki_name\E/}smx ) )
-    {
-        # We may have failed because the URL returned from the API
-        # is missing something (e.g. "user:password@"). Retry with a
-        # corresponding URL constructed from our original $url.
-        $download_url =~ s{.*?\Q$wiki_name\E/}{$url/}smx;
-        return $self->download_mediafile($download_url);
-    }
-    else {
-        $self->to_user->print("Error downloading mediafile from :\n");
-        $self->to_user->print("URL: ${download_url}\n");
-        $self->to_user->print(
-            sprintf(
-                'Server response: %s %s' . $response->code,
-                $response->message
-              )
-              . "\n"
-        );
-        return;
-    }
+		# It is tempting to return
+		# $response->decoded_content({charset => "none"}), but
+		# when doing so, utf8::downgrade($content) fails with
+		# "Wide character in subroutine entry".
+		$response->decode();
+		return $response->content();
+	} elsif ( ( $download_url !~ /^\Q$url\E/smx )
+			  and ( $download_url =~ m{\Q$wiki_name\E/}smx ) ) {
+		# We may have failed because the URL returned from the API
+		# is missing something (e.g. "user:password@"). Retry with a
+		# corresponding URL constructed from our original $url.
+		$download_url =~ s{.*?\Q$wiki_name\E/}{$url/}smx;
+		return $self->download_mediafile($download_url);
+	} else {
+		$self->to_user->print("Error downloading mediafile from :\n");
+		$self->to_user->print("URL: ${download_url}\n");
+		$self->to_user->print(
+			sprintf(
+				'Server response: %s %s' . $response->code,
+				$response->message
+			  )
+			. "\n"
+		  );
+		return;
+	}
 }
 
 sub get_last_local_revision {
-    my $self = shift;
+	my $self = shift;
 
-    # Get note regarding last mediawiki revision
-    my $note;
-    try {
-        $note = $self->repo->command(
-            [
-                'notes', '--ref=' . $self->remotename . '/mediawiki',
-                'show',  'refs/mediawiki/' . $self->remotename . '/master'
-            ],
-            STDERR => 0
-        );
-    };
+	# Get note regarding last mediawiki revision
+	my $note;
+	try {
+		$note = $self->repo->command( [
+			'notes', '--ref=' . $self->remotename . '/mediawiki',
+			'show', 'refs/mediawiki/' . $self->remotename . '/master'
+		  ], STDERR => 0 );
+	}
+	;
 
-    my $lastrevision_number;
-    if ( !defined $note ) {
-        $self->to_user->print("No previous mediawiki revision found.\n");
-        $lastrevision_number = 0;
-    }
-    else {
-        my @note_info = split / /sm, $note;
+	my $lastrevision_number;
+	if ( !defined $note ) {
+		$self->to_user->print(
+			"No previous mediawiki revision found.\n");
+		$lastrevision_number = 0;
+	} else {
+		my @note_info = split / /sm, $note;
 
-        # Notes are formatted : mediawiki_revision: #number
-        $lastrevision_number = $note_info[1];
-        chomp $lastrevision_number;
-        $self->to_user->print( 'Last local mediawiki revision found is '
-              . "${lastrevision_number}.\n" );
-    }
-    return $lastrevision_number;
+		# Notes are formatted : mediawiki_revision: #number
+		$lastrevision_number = $note_info[1];
+		chomp $lastrevision_number;
+		$self->to_user->print(
+			'Last local mediawiki revision found is '
+			. $lastrevision_number . ".\n" );
+	}
+	return $lastrevision_number;
 }
 
 sub literal_data {
-    my ( $self, $content ) = @_;
-    $self->safe_print( 'data ', bytes::length($content), "\n", $content );
-    return;
+	my ( $self, $content ) = @_;
+	$self->safe_print( 'data ', bytes::length($content), "\n",
+					  $content );
+	return;
 }
 
 sub literal_data_raw {
 
-    # Output possibly binary content.
-    my ( $self, $content ) = @_;
+	# Output possibly binary content.
+	my ( $self, $content ) = @_;
 
-    # Avoid confusion between size in bytes and in characters
-    utf8::downgrade($content);
-    binmode STDOUT, ':raw';
-    $self->safe_print( 'data ', bytes::length($content), "\n", $content );
-    binmode STDOUT, ':encoding(UTF-8)';
-    return;
+	# Avoid confusion between size in bytes and in characters
+	utf8::downgrade($content);
+	binmode STDOUT, ':raw';
+	$self->safe_print( 'data ', bytes::length($content), "\n",
+					  $content );
+	binmode STDOUT, ':encoding(UTF-8)';
+	return;
 }
 
 sub cmd_capabilities {
-    my ($self) = @_;
+	my ($self) = @_;
 
-    # Revisions are imported to the private namespace
-    # refs/mediawiki/$remotename/ by the helper and fetched into
-    # refs/remotes/$remotename later by fetch.
-    $self->safe_print(
-        'refspec refs/heads/*:refs/mediawiki/' . $self->remotename . "/*\n" );
-    $self->safe_print("import\n");
-    $self->safe_print("list\n");
-    $self->safe_print("push\n");
-    if ( $self->dumb_push ) {
-        $self->safe_print("no-private-update\n");
-    }
-    $self->safe_print("\n");
-    return;
+	# Revisions are imported to the private namespace
+	# refs/mediawiki/$remotename/ by the helper and fetched into
+	# refs/remotes/$remotename later by fetch.
+	$self->safe_print( 'refspec refs/heads/*:refs/mediawiki/'
+					  . $self->remotename
+					  . "/*\n" );
+	$self->safe_print("import\n");
+	$self->safe_print("list\n");
+	$self->safe_print("push\n");
+	if ( $self->dumb_push ) {
+		$self->safe_print("no-private-update\n");
+	}
+	$self->safe_print("\n");
+	return;
 }
 
 sub cmd_list {
-    my ($self) = @_;
+	my ($self) = @_;
 
-    # MediaWiki does not have branches, we consider one branch arbitrarily
-    # called master, and HEAD pointing to it.
-    $self->safe_print("? refs/heads/master\n");
-    $self->safe_print("\@refs/heads/master HEAD\n");
-    $self->safe_print("\n");
-    return;
+	# MediaWiki does not have branches, we consider one branch arbitrarily
+	# called master, and HEAD pointing to it.
+	$self->safe_print("? refs/heads/master\n");
+	$self->safe_print("\@refs/heads/master HEAD\n");
+	$self->safe_print("\n");
+	return;
 }
 
 sub cmd_option {
-    my ( $self, $arg1, $arg2 ) = @_;
-    if ( $arg1 eq $EMPTY || $arg2 eq $EMPTY ) {
-        die "Invalid arguments for option\n";
-    }
+	my ( $self, $arg1, $arg2 ) = @_;
+	if ( $arg1 eq $EMPTY || $arg2 eq $EMPTY ) {
+		die "Invalid arguments for option\n";
+	}
 
-    $self->to_user->print(
-        "remote-helper command 'option $arg1' not yet implemented\n");
-    $self->safe_print("unsupported\n");
-    return;
+	$self->to_user->print(
+		"remote-helper command 'option $arg1' not yet implemented\n");
+	$self->safe_print("unsupported\n");
+	return;
 }
 
 sub fetch_revisions_for_page {
-    my $self       = shift;
-    my $page       = shift;
-    my $id         = shift;
-    my $fetch_from = shift;
-    my @page_revs  = ();
-    my $query      = {
-        action    => 'query',
-        prop      => 'revisions',
-        rvprop    => 'ids',
-        rvdir     => 'newer',
-        rvstartid => $fetch_from,
-        rvlimit   => 500,
-        pageids   => $id,
+	my $self       = shift;
+	my $page       = shift;
+	my $id         = shift;
+	my $fetch_from = shift;
+	my @page_revs  = ();
+	my $query      = {
+		action    => 'query',
+		prop      => 'revisions',
+		rvprop    => 'ids',
+		rvdir     => 'newer',
+		rvstartid => $fetch_from,
+		rvlimit   => 500,
+		pageids   => $id,
 
-        # Let MediaWiki know that we support the latest API.
-        continue => q{},
-    };
+		# Let MediaWiki know that we support the latest API.
+		continue => q{},
+	};
 
-    my $revnum = 0;
+	my $revnum = 0;
 
-    # Get 500 revisions at a time due to the mediawiki api limit
-    while (1) {
-        my $result = $self->api($query);
+	# Get 500 revisions at a time due to the mediawiki api limit
+	while (1) {
+		my $result = $self->api($query);
 
-        # Parse each of those 500 revisions
-        foreach
-          my $revision ( @{ $result->{query}->{pages}->{$id}->{revisions} } )
-        {
-            my $page_rev_ids;
-            $page_rev_ids->{pageid} = $page->{pageid};
-            $page_rev_ids->{revid}  = $revision->{revid};
-            push @page_revs, $page_rev_ids;
-            $revnum++;
-        }
+		# Parse each of those 500 revisions
+		foreach my $revision (
+			@{ $result->{query}->{pages}->{$id}->{revisions} } ) {
+			my $page_rev_ids;
+			$page_rev_ids->{pageid} = $page->{pageid};
+			$page_rev_ids->{revid}  = $revision->{revid};
+			push @page_revs, $page_rev_ids;
+			$revnum++;
+		}
 
-        if ( $result->{'query-continue'} ) {    # For legacy APIs
-            $query->{rvstartid} =
-              $result->{'query-continue'}->{revisions}->{rvstartid};
-        }
-        elsif ( $result->{continue} ) {         # For newer APIs
-            $query->{rvstartid} = $result->{continue}->{rvcontinue};
-            $query->{continue}  = $result->{continue}->{continue};
-        }
-        else {
-            last;
-        }
-    }
-    if ( $self->shallow_import && @page_revs ) {
-        $self->to_user->print("  Found 1 revision (shallow import).\n");
-        @page_revs = reverse sort { $a->{revid} <=> $b->{revid} } (@page_revs);
-        return $page_revs[0];
-    }
-    $self->to_user->print("  Found ${revnum} revision(s).\n");
-    return @page_revs;
+		if ( $result->{'query-continue'} ) { # For legacy APIs
+			$query->{rvstartid} =
+			  $result->{'query-continue'}->{revisions}->{rvstartid};
+		} elsif ( $result->{continue} ) { # For newer APIs
+			$query->{rvstartid} = $result->{continue}->{rvcontinue};
+			$query->{continue}  = $result->{continue}->{continue};
+		} else {
+			last;
+		}
+	}
+	if ( $self->shallow_import && @page_revs ) {
+		$self->to_user->print("  Found 1 revision (shallow import).\n");
+		@page_revs =
+		  reverse sort { $a->{revid} <=> $b->{revid} } (@page_revs);
+		return $page_revs[0];
+	}
+	$self->to_user->print("  Found ${revnum} revision(s).\n");
+	return @page_revs;
 }
 
 sub fetch_revisions {
-    my ( $self, $pages, $fetch_from ) = shift;
-    my @pages = @{$pages};
+	my ( $self, $pages, $fetch_from ) = shift;
+	my @pages = @{$pages};
 
-    my @revisions = ();
-    my $n         = 1;
-    foreach my $page (@pages) {
-        my $id = $page->{pageid};
-        $self->to_user->print( "page ${n}/", scalar(@pages), ': ',
-            $page->{title}, "\n" );
-        $n++;
-        my @page_revs =
-          $self->fetch_revisions_for_page( $page, $id, $fetch_from );
-        @revisions = ( @page_revs, @revisions );
-    }
+	my @revisions = ();
+	my $n         = 1;
+	foreach my $page (@pages) {
+		my $id = $page->{pageid};
+		$self->to_user->print( "page ${n}/", scalar(@pages), ': ',
+							 $page->{title}, "\n" );
+		$n++;
+		my @page_revs =
+		  $self->fetch_revisions_for_page( $page, $id, $fetch_from );
+		@revisions = ( @page_revs, @revisions );
+	}
 
-    return ( $n, @revisions );
+	return ( $n, @revisions );
 }
 
 sub fe_escape_path {
-    my $self = shift;
-    my $path = shift;
-    $path =~ s/\\/\\\\/gsmx;
-    $path =~ s/"/\\"/gsmx;
-    $path =~ s/\n/\\n/gsmx;
-    return qq("${path}");
+	my $self = shift;
+	my $path = shift;
+	$path =~ s/\\/\\\\/gsmx;
+	$path =~ s/"/\\"/gsmx;
+	$path =~ s/\n/\\n/gsmx;
+	return qq("${path}");
 }
 
 sub format_committer_name {
-    my ( $self, $author, $wiki, $date ) = @_;
-    return sprintf( 'committer %s <%s@%s> %s +0000',
-        $author, $author, $wiki, $date->epoch )
-      . "\n";
+	my ( $self, $author, $wiki, $date ) = @_;
+	return sprintf( 'committer %s <%s@%s> %s +0000',
+					$author, $author, $wiki, $date->epoch )
+	  . "\n";
 }
 
 sub import_file_revision {
-    my ( $self, $commit, $full_import, $n, $mediafile ) = @_;
-    my %commit = %{$commit};
-    my %mediafile;
-    if ($mediafile) {
-        %mediafile = %{$mediafile};
-    }
+	my ( $self, $commit, $full_import, $n, $mediafile ) = @_;
+	my %commit = %{$commit};
+	my %mediafile;
+	if ($mediafile) {
+		%mediafile = %{$mediafile};
+	}
 
-    my $title   = $commit{title};
-    my $comment = $commit{comment};
-    my $content = $commit{content};
-    my $author  = $commit{author};
-    my $date    = $commit{date};
+	my $title   = $commit{title};
+	my $comment = $commit{comment};
+	my $content = $commit{content};
+	my $author  = $commit{author};
+	my $date    = $commit{date};
 
-    $self->safe_print(
-        'commit refs/mediawiki/' . $self->remotename . "/master\n" );
-    $self->safe_print("mark :${n}\n");
-    $self->safe_print(
-        $self->format_committer_name( $author, $self->wiki_name, $date ) );
-    $self->literal_data($comment);
+	$self->safe_print(
+		'commit refs/mediawiki/' . $self->remotename . "/master\n" );
+	$self->safe_print("mark :${n}\n");
+	$self->safe_print(
+		$self->format_committer_name(
+			$author, $self->wiki_name, $date
+		  )
+	  );
+	$self->literal_data($comment);
 
-    # If it's not a clone, we need to know where to start from
-    if ( !$full_import && $n == 1 ) {
-        $self->safe_print(
-            'from refs/mediawiki/' . $self->remotename . "/master^0\n" );
-    }
-    if ( $content ne $DELETED_CONTENT ) {
-        $self->safe_print( 'M 644 inline '
-              . $self->fe_escape_path( "${title}." . $self->SUFFIX )
-              . "\n" );
-        $self->literal_data($content);
-        if (%mediafile) {
-            $self->safe_print( 'M 644 inline '
-                  . $self->fe_escape_path( $mediafile{title} )
-                  . "\n" );
-            $self->literal_data_raw( $mediafile{content} );
-        }
-        $self->safe_print("\n\n");
-    }
-    else {
-        $self->safe_print( 'D '
-              . $self->fe_escape_path( "${title}." . $self->SUFFIX )
-              . "\n" );
-    }
+	# If it's not a clone, we need to know where to start from
+	if ( !$full_import && $n == 1 ) {
+		$self->safe_print( 'from refs/mediawiki/'
+						  . $self->remotename
+						  . "/master^0\n" );
+	}
+	if ( $content ne $DELETED_CONTENT ) {
+		$self->safe_print( 'M 644 inline '
+						  . $self->fe_escape_path( "${title}." . $self->SUFFIX )
+						  . "\n" );
+		$self->literal_data($content);
+		if (%mediafile) {
+			$self->safe_print( 'M 644 inline '
+							   . $self->fe_escape_path( $mediafile{title} )
+							   . "\n" );
+			$self->literal_data_raw( $mediafile{content} );
+		}
+		$self->safe_print("\n\n");
+	} else {
+		$self->safe_print( 'D '
+						   . $self->fe_escape_path( "${title}." . $self->SUFFIX )
+						   . "\n" );
+	}
 
-    # mediawiki revision number in the git note
-    if ( $full_import && $n == 1 ) {
-        $self->safe_print(
-            'reset refs/notes/' . $self->remotename . "/mediawiki\n" );
-    }
-    $self->safe_print(
-        'commit refs/notes/' . $self->remotename . "/mediawiki\n" );
-    $self->safe_print(
-        $self->format_committer_name( $author, $self->wiki_name, $date ) );
+	# mediawiki revision number in the git note
+	if ( $full_import && $n == 1 ) {
+		$self->safe_print(
+			'reset refs/notes/' . $self->remotename . "/mediawiki\n" );
+	}
+	$self->safe_print(
+		'commit refs/notes/' . $self->remotename . "/mediawiki\n" );
+	$self->safe_print(
+		$self->format_committer_name(
+			$author, $self->wiki_name, $date
+		  )
+	  );
 
-    $self->literal_data('Note added by git-mediawiki during import');
-    if ( !$full_import && $n == 1 ) {
-        $self->safe_print(
-            'from refs/notes/' . $self->remotename . "/mediawiki^0\n" );
-    }
-    $self->safe_print("N inline :${n}\n");
-    $self->literal_data("mediawiki_revision: $commit{mw_revision}");
-    $self->safe_print("\n\n");
-    return;
+	$self->literal_data('Note added by git-mediawiki during import');
+	if ( !$full_import && $n == 1 ) {
+		$self->safe_print(
+			'from refs/notes/' . $self->remotename . "/mediawiki^0\n" );
+	}
+	$self->safe_print("N inline :${n}\n");
+	$self->literal_data("mediawiki_revision: $commit{mw_revision}");
+	$self->safe_print("\n\n");
+	return;
 }
 
 # parse a sequence of
@@ -1813,129 +1847,127 @@ sub import_file_revision {
 # \n
 # (like batch sequence of import and sequence of push statements)
 sub get_more_refs {
-    my ( $self, $cmd ) = @_;
-    my @refs;
-    while (1) {
-        my $line = $self->from_git->getline;
-        if ( $line =~ /^$cmd (.*)$/smx ) {
-            push @refs, $1;
-        }
-        elsif ( $line eq "\n" or $line eq q{} ) {
-            return @refs;
-        }
-        else {
-            die "Invalid command in a '$cmd' batch: $_\n";
-        }
-    }
-    return;
+	my ( $self, $cmd ) = @_;
+	my @refs;
+	while (1) {
+		my $line = $self->from_git->getline;
+		if ( $line =~ /^$cmd (.*)$/smx ) {
+			push @refs, $1;
+		} elsif ( $line eq "\n" or $line eq q{} ) {
+			return @refs;
+		} else {
+			die "Invalid command in a '$cmd' batch: $_\n";
+		}
+	}
+	return;
 }
 
 sub cmd_import {
-    my ( $self, $ref ) = @_;
-    if ( $ref eq $EMPTY ) {
-        die "Invalid argument for import\n";
-    }
+	my ( $self, $ref ) = @_;
+	if ( $ref eq $EMPTY ) {
+		die "Invalid argument for import\n";
+	}
 
-    # multiple import commands can follow each other.
-    my @refs = ( $ref, $self->get_more_refs('import') );
-    my $processed_refs;
-    foreach my $ref (@refs) {
-        next if $processed_refs->{$ref};
+	# multiple import commands can follow each other.
+	my @refs = ( $ref, $self->get_more_refs('import') );
+	my $processed_refs;
+	foreach my $ref (@refs) {
+		next if $processed_refs->{$ref};
 
-        # skip duplicates: "import refs/heads/master" being issued
-        # twice; TODO: why?
-        $processed_refs->{$ref} = 1;
-        $self->import_ref($ref);
-    }
-    $self->safe_print("done\n");
-    return;
+		# skip duplicates: "import refs/heads/master" being issued
+		# twice; TODO: why?
+		$processed_refs->{$ref} = 1;
+		$self->import_ref($ref);
+	}
+	$self->safe_print("done\n");
+	return;
 }
 
 sub import_ref {
-    my ( $self, $ref ) = @_;
+	my ( $self, $ref ) = @_;
 
-    # The remote helper will call "import HEAD" and
-    # "import refs/heads/master".
-    # Since HEAD is a symbolic ref to master (by convention,
-    # followed by the output of the command "list" that we gave),
-    # we don't need to do anything in this case.
-    if ( $ref eq 'HEAD' ) {
-        return;
-    }
+	# The remote helper will call "import HEAD" and
+	# "import refs/heads/master".
+	# Since HEAD is a symbolic ref to master (by convention,
+	# followed by the output of the command "list" that we gave),
+	# we don't need to do anything in this case.
+	if ( $ref eq 'HEAD' ) {
+		return;
+	}
 
-    $self->to_user->print("Searching revisions...\n");
-    my $last_local = $self->get_last_local_revision();
-    my $fetch_from = $last_local + 1;
-    if ( $fetch_from == 1 ) {
-        $self->to_user->print("... fetching from beginning.\n");
-    }
-    else {
-        $self->to_user->print("... fetching from here.\n");
-    }
+	$self->to_user->print("Searching revisions...\n");
+	my $last_local = $self->get_last_local_revision();
+	my $fetch_from = $last_local + 1;
+	if ( $fetch_from == 1 ) {
+		$self->to_user->print("... fetching from beginning.\n");
+	} else {
+		$self->to_user->print("... fetching from here.\n");
+	}
 
-    my $n = 0;
-    if ( $self->fetch_strategy eq 'by_rev' ) {
-        $self->to_user->print("Fetching & writing export data by revs...\n");
-        $n = $self->import_ref_by_revs($fetch_from);
-    }
-    elsif ( $self->fetch_strategy eq 'by_page' ) {
-        $self->to_user->print("Fetching & writing export data by pages...\n");
-        $n = $self->import_ref_by_pages($fetch_from);
-    }
-    else {
-        my ( $strategy, $remotename ) =
-          ( $self->fetch_strategy, $self->remotename );
-        $self->to_user->print(
-            'fatal: invalid fetch strategy ' . qq{$strategy".\n} );
-        $self->to_user->print( 'Check your configuration variables '
-              . "remote.${remotename}.fetchStrategy and "
-              . "mediawiki.fetchStrategy\n" );
-        exit 1;
-    }
+	my $n = 0;
+	if ( $self->fetch_strategy eq 'by_rev' ) {
+		$self->to_user->print(
+			"Fetching & writing export data by revs...\n");
+		$n = $self->import_ref_by_revs($fetch_from);
+	} elsif ( $self->fetch_strategy eq 'by_page' ) {
+		$self->to_user->print(
+			"Fetching & writing export data by pages...\n");
+		$n = $self->import_ref_by_pages($fetch_from);
+	} else {
+		my ( $strategy, $remotename ) =
+		  ( $self->fetch_strategy, $self->remotename );
+		$self->to_user->print(
+			'fatal: invalid fetch strategy ' . qq{$strategy".\n} );
+		$self->to_user->print( 'Check your configuration variables '
+							 . "remote.${remotename}.fetchStrategy and "
+							 . "mediawiki.fetchStrategy\n" );
+		exit 1;
+	}
 
-    if ( $fetch_from == 1 && $n == 0 ) {
-        $self->to_user->print(
-            "You appear to have cloned an empty MediaWiki.\n");
+	if ( $fetch_from == 1 && $n == 0 ) {
+		$self->to_user->print(
+			"You appear to have cloned an empty MediaWiki.\n");
 
-        # Something has to be done remote-helper side. If nothing is done,
-        # an error is thrown saying that HEAD is referring to unknown
-        # object 0000000000000000000 and the clone fails.
-    }
-    return;
+		# Something has to be done remote-helper side. If nothing is done,
+		# an error is thrown saying that HEAD is referring to unknown
+		# object 0000000000000000000 and the clone fails.
+	}
+	return;
 }
 
 sub import_ref_by_pages {
-    my $self       = shift;
-    my $fetch_from = shift;
-    my %pages_hash = $self->get_pages();
-    my @pages      = values %pages_hash;
+	my $self       = shift;
+	my $fetch_from = shift;
+	my $pages      = $self->get_pages();
+	my @page_list  = values %{$pages};
 
-    my ( $n, @revisions ) = $self->fetch_revisions( \@pages, $fetch_from );
+	my ( $n, @revisions ) =
+	  $self->fetch_revisions( \@page_list, $fetch_from );
 
-    @revisions = sort { $a->{revid} <=> $b->{revid} } @revisions;
-    my @revision_ids = map { $_->{revid} } @revisions;
+	@revisions = sort { $a->{revid} <=> $b->{revid} } @revisions;
+	my @revision_ids = map { $_->{revid} } @revisions;
 
-    return $self->import_revids( $fetch_from, \@revision_ids, \%pages_hash );
+	return $self->import_revids( $fetch_from, \@revision_ids, $pages );
 }
 
 sub error_non_fast_forward {
-    my $self   = shift;
-    my $advice = $self->repo->config_bool('advice.pushNonFastForward');
+	my $self   = shift;
+	my $advice = $self->repo->config_bool('advice.pushNonFastForward');
 
-    if ($advice) {
+	if ($advice) {
 
-        # Native git-push would show this after the summary.
-        # We can't ask it to display it cleanly, so $self->safe_print(it
-        # ourselves before.
-        $self->to_user->print(<<"EOF");
+		# Native git-push would show this after the summary.
+		# We can't ask it to display it cleanly, so $self->safe_print(it
+		# ourselves before.
+		$self->to_user->print(<<"EOF");
 To prevent you from losing history, non-fast-forward updates were
 rejected Merge the remote changes (e.g. 'git pull') before pushing
 again. See the 'Note about fast-forwards' section of 'git push --help'
 for details.
 EOF
-    }
-    $self->safe_print(qq(error $_[0] "non-fast-forward"\n));
-    return 0;
+	}
+	$self->safe_print(qq(error $_[0] "non-fast-forward"\n));
+	return 0;
 }
 
 # Dumb push: don't update notes and mediawiki ref to reflect the last push.
@@ -1954,10 +1986,10 @@ EOF
 # MediaWiki revision.
 
 sub git_remote_mediawiki {
-    my @arg = @_;
+	my @arg = @_;
 
-    if ( @arg != 2 ) {
-        die <<"EOF";
+	if ( @arg != 2 ) {
+		die <<"EOF";
 ERROR: git-remote-mediawiki module was not called with a correct
 number of parameters
 
@@ -1971,29 +2003,21 @@ This module can be used the following way:
 Then, use git commit, push and pull as with every normal git
 repository.
 EOF
-    }
+	}
 
-    my $mw = Git::Mediawiki->new(@arg);
+	my $mw = Git::Mediawiki->new(@arg);
 
-    my $wiki_name = $mw->remote_url;
-    $wiki_name =~ s{[^/]*://}{}smx;
+	# Commands parser
+	while ( chomp( my $line = $mw->from_git->getline ) ) {
 
-    # If URL is like http://user:password@example.com/, we clearly don't
-    # want the password in $wiki_name. While we're there, also remove user
-    # and '@' sign, to avoid author like MWUser@HTTPUser@host.com
-    $wiki_name =~ s/^.*@//smx;
+		if ( !$mw->parse_command($line) ) {
+			last;
+		}
 
-    # Commands parser
-    while ( chomp( my $line = $mw->from_git->getline ) ) {
-
-        if ( !$mw->parse_command($line) ) {
-            last;
-        }
-
-        # flush STDOUT, to make sure the previous
-        # command is fully processed.
-        $mw->to_git->autoflush;
-    }
-    return;
+		# flush STDOUT, to make sure the previous
+		# command is fully processed.
+		$mw->to_git->autoflush;
+	}
+	return;
 }
-1;    # Famous last words
+1;								# Famous last words
