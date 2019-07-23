@@ -13,7 +13,7 @@
 
 . ./test.config
 
-WIKI_URL=http://"$SERVER_ADDR:$PORT/$WIKI_DIR_NAME"
+WIKI_URL=http://"$SERVER_ADDR:$PORT$WIKI_DIR_NAME"
 CURR_DIR=$(pwd)
 TEST_OUTPUT_DIRECTORY=$(pwd)
 WEB_ERROR_LOG="$WEB_TMP/lighttpd.error.log"
@@ -59,8 +59,8 @@ die_with_status () {
 test_check_precond () {
 	GIT_EXEC_PATH=$(cd "$(dirname "$0")/.." && pwd)
 	PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
-	echo "$WIKI_DIR_INST/$WIKI_DIR_NAME"
-	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
+	echo "$WIKI_DIR_INST$WIKI_DIR_NAME"
+	if [ ! -d "$WIKI_DIR_INST$WIKI_DIR_NAME" ];
 	then
 		skip_all='skipping gateway git-mw tests, no mediawiki found'
 		test_done
@@ -241,23 +241,31 @@ config_lighttpd () {
 	mkdir -p $WEB_WWW
 
 	cat > $WEB/lighttpd.conf <<EOF
-	server.document-root = "$WEB_WWW"
-	server.port = $PORT
-	server.pid-file = "$WEB_TMP/pid"
+server.document-root = "$WEB_WWW"
+server.port = $PORT
+server.pid-file = "$WEB_TMP/pid"
 
-	server.modules = (
+url.rewrite-if-not-file = (
+    "^/?$" => "${WIKI_DIR_NAME}/index.php",
+    "^/wiki/(mw-)?config/?" => "$0",
+    "^/wiki/([^?]*)(?:\?(.*))?" => "${WIKI_DIR_NAME}/index.php?title=$1&$2",
+    "^/wiki/([^?]*)" => "${WIKI_DIR_NAME}/index.php?title=$1",
+    "^/wiki$" => "${WIKI_DIR_NAME}/index.php", # to avoid 404 when the user types /wiki instead of /wiki/
+)
+
+server.modules = (
 	"mod_rewrite",
 	"mod_redirect",
 	"mod_access",
 	"mod_accesslog",
 	"mod_fastcgi"
-	)
+)
 
-	server.errorlog = "$WEB_ERROR_LOG"
+server.errorlog = "$WEB_ERROR_LOG"
 
-	index-file.names = ("index.php" , "index.html")
+index-file.names = ("index.php" , "index.html")
 
-	mimetype.assign		    = (
+mimetype.assign		    = (
 	".pdf"		=>	"application/pdf",
 	".sig"		=>	"application/pgp-signature",
 	".spl"		=>	"application/futuresplash",
@@ -310,22 +318,21 @@ config_lighttpd () {
 	".tbz"		=>	"application/x-bzip-compressed-tar",
 	".tar.bz2"	=>	"application/x-bzip-compressed-tar",
 	""		=>	"text/plain"
-	)
+)
 
-	fastcgi.server = ( ".php" =>
-	("localhost" =>
-	( "socket" => "$WEB_TMP/php.socket",
-	"bin-path" => "$PHP_DIR/php-cgi -c $WEB/php.ini"
-
-	)
-	)
-	)
+fastcgi.server = ( ".php" =>
+	( "localhost" =>
+	  ( "socket" => "$WEB_TMP/php.socket",
+	  	"bin-path" => "$PHP_DIR/php-cgi -c $WEB/php.ini"
+	  )
+   )
+)
 EOF
 
 	cat > $WEB/php.ini <<EOF
-	error_reporting = E_ALL
-	error_log = $PHP_ERROR_LOG
-	session.save_path ='$CURR_DIR/$WEB_TMP'
+error_reporting = E_ALL
+error_log = $PHP_ERROR_LOG
+session.save_path ='$CURR_DIR/$WEB_TMP'
 EOF
 }
 
@@ -442,20 +449,24 @@ setup_dir () {
 create_db () {
 	installDir=$1
 	dbDir=$2
-	path=$3
+	server=http://$3
 	rm -f $dbDir/*.sqlite
 
 	echo CREDENTIALS: $WIKI_ADMIN $WIKI_PASSW
 	cd $installDir														&&	\
 		php maintenance/install.php --dbtype=sqlite --dbpath="$dbDir"		\
-			--scriptpath=$path --pass=$WIKI_PASSW wiki $WIKI_ADMIN
-	echo '$wgDebugLogFile = "'$MW_DEBUG_LOG'";' >> LocalSettings.php
+			--server=$server --scriptpath=$WIKI_DIR_NAME --pass=$WIKI_PASSW wiki $WIKI_ADMIN
+	cat >> LocalSettings.php <<EOF
+
+\$wgDebugLogFile = '$MW_DEBUG_LOG';
+\$wgArticlePath = '/wiki/\$1';
+EOF
 }
 
 # Install a wiki in your web server directory.
 wiki_install () {
 	files=$1          # $FILES_FOLDER
-	dir=$2            # $WIKI_DIR_INST/$WIKI_DIR_NAME
+	dir=$2            # $WIKI_DIR_INST$WIKI_DIR_NAME
 	url=$3            # $MW_URL
 	ver=$4            # "$MW_VERSION_MAJOR.$MW_VERSION_MINOR"
 	server=$5         # $SERVER_ADDR:$PORT
@@ -474,9 +485,9 @@ wiki_install () {
 					"$archive_abs_path to $dir"
 	) || exit 1
 
-	create_db $dir $tmp $path
+	create_db $dir $tmp $server
 
-	echo "Your wiki has been installed: http://$server/$path"
+	echo "Your wiki has been installed: $server"
 }
 
 # Reset the database of the wiki and the password of the admin
@@ -501,7 +512,7 @@ wiki_delete () {
 		rm -fr "$WEB"
 	else
 		# Delete the wiki's directory.
-		rm -rf "$WIKI_DIR_INST/$WIKI_DIR_NAME" ||
+		rm -rf "$WIKI_DIR_INST$WIKI_DIR_NAME" ||
 			error "Wiki's directory $WIKI_DIR_INST/" \
 			"$WIKI_DIR_NAME could not be deleted"
 		# Delete the wiki's SQLite database.

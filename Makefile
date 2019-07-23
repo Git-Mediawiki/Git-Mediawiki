@@ -34,7 +34,8 @@ DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
 INSTLIBDIR_SQ = $(subst ','\'',$(INSTLIBDIR))
 
 test:
-	$(MAKE) -C /t $(if ${T},T="${T}")
+	echo running target ${CMD}
+	$(MAKE) -C /t $(if ${T},T="${T}") ${CMD}
 
 check: perlcritic test
 
@@ -59,7 +60,7 @@ dockerBuild:
 		--build-arg MW_URL=${MW_URL}
 
 docker:
-	docker run --rm -v `pwd`/WEB:/WEB -v `pwd`/t:/t mabs					\
+	. t/test.config && docker run --rm -p $$PORT:$$PORT -v `pwd`/t:/t mabs	\
 		$(if ${T},--env T="${T}") ${CMD}
 
 .PHONY: all test check install_pm install clean perlcritic

@@ -14,29 +14,37 @@ T=$(wildcard ${mkfileDir}/t[0-9][0-9][0-9][0-9]-*.sh)
 
 all: test
 
-.PHONY: help test clean all
+.PHONY: help test clean all web
 
 help:
 	@echo 'Run "$(MAKE) test" to launch test scripts'
 	@echo 'Run "$(MAKE) clean" to remove trash folders'
 
-test:
+LocalSettings.php:
 	. ${mkfileDir}/test-gitmw-lib.sh					 				&&	\
-	rm -f "$$WIKI_DIR_INST/$$WIKI_DIR_NAME/LocalSettings.php"				\
-		$$TMP/*.sqlite $$FILES_FOLDER/*.sqlite 							&&	\
-	mkdir -p $$FILES_FOLDER												&&	\
+	rm -f "$$WIKI_DIR_INST/$$WIKI_DIR_NAME/LocalSettings.php"			\
+		$$TMP/*.sqlite $$FILES_FOLDER/*.sqlite 						&&	\
+	mkdir -p $$FILES_FOLDER											&&	\
+	wiki_install $$FILES_FOLDER "$$WIKI_DIR_INST/$$WIKI_DIR_NAME"		\
+		$$MW_URL "$$MW_VERSION_MAJOR.$$MW_VERSION_MINOR"				\
+		"$$SERVER_ADDR:$$PORT" $$MW_TGZ $$TMP $$WIKI_DIR_NAME		&&	\
+	cp -r $$TMP/*.sqlite $$FILES_FOLDER/
+
+test: LocalSettings.php
+	. ${mkfileDir}/test-gitmw-lib.sh					 				&&	\
 	start_lighttpd $$WEB_TMP/pid $$LIGHTTPD_DIR $$WEB $$WEB_ERROR_LOG	&&	\
-	wiki_install $$FILES_FOLDER "$$WIKI_DIR_INST/$$WIKI_DIR_NAME" $$MW_URL	\
-		"$$MW_VERSION_MAJOR.$$MW_VERSION_MINOR"	"$$SERVER_ADDR:$$PORT" 		\
-		$$MW_TGZ $$TMP $$WIKI_DIR_NAME									&&	\
-	cp -r $$TMP/*.sqlite $$FILES_FOLDER/								&&	\
-	for t in ${T}; do 	\
+	for t in ${T}; do														\
 		cd ${mkfileDir};													\
 		"$$t" --verbose || ( stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG	\
 			$$PHP_ERROR_LOG $$MW_DEBUG_LOG; exit 1 )						\
 	done																&&	\
 	stop_lighttpd $$WEB_TMP/pid $$WEB_ERROR_LOG $$PHP_ERROR_LOG				\
 		$$MW_DEBUG_LOG
+
+web: LocalSettings.php
+	. ${mkfileDir}/test-gitmw-lib.sh					 				&&	\
+	start_lighttpd $$WEB_TMP/pid $$LIGHTTPD_DIR $$WEB $$WEB_ERROR_LOG	&&	\
+	while [ 1 ]; do sleep 30; date; done
 
 clean:
 	$(RM) -r 'trash directory'.*
