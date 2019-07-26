@@ -22,6 +22,8 @@
 #     "edit_page"
 #     "getallpagename"
 
+package MABSTestHarness;
+
 use MediaWiki::API;
 use Getopt::Long;
 use DateTime::Format::ISO8601;
@@ -31,187 +33,222 @@ use open ':encoding(utf8)';
 use strict;
 use warnings;
 
-# These should be exported in test-gitmw.pl
-my $wiki_address = "http://$ENV{'SERVER_ADDR'}:$ENV{'PORT'}";
-my $wiki_url = "$wiki_address$ENV{'WIKI_DIR_NAME'}/api.php";
-my $wiki_admin = "$ENV{'WIKI_ADMIN'}";
-my $wiki_admin_pass = "$ENV{'WIKI_PASSW'}";
+use base qw(MediaWiki::API);
+use version; our $VERSION = qv(0.02);
 
 sub report_error {
-  my ($mw, $msg) = @_;
-  my $err = '';
-  if ( defined $msg ) {
-	  $err = "$msg: ";
-  }
-  die $err . $mw->{error}->{code} . ":"
-	. $mw->{error}->{details} . "\n";
+    my ( $self, $msg ) = @_;
+    my $err = q[];
+    if ( defined $msg ) {
+        $err = "$msg: ";
+    }
+    die $err . $self->{error}->{code} . q{:} . $self->{error}->{details} . "\n";
 }
 
 # wiki_login <name> <password>
 #
-# Logs the user with <name> and <password> in the global variable
-# of the mediawiki $mw
+# Logs the user with <name> and <password>
 sub wiki_login {
-  my ($user, $pass) = @_;
+    my ( $self, $user, $pass ) = @_;
 
-  $mw->login( { lgname => "$user",lgpassword => "$pass" } )
-	|| report_error( $mw, 'login failed' );
+    return $self->login( { lgname => "$user", lgpassword => "$pass" } )
+      || report_error( $self, 'login failed' );
 }
 
 # wiki_getpage <wiki_page> <dest_path>
 #
-# fetch a page <wiki_page> from the wiki referenced in the global variable
-# $mw and copies its content in directory dest_path
+# fetch a page <wiki_page> and copies its content into directory dest_path
 sub wiki_getpage {
-  my ($pagename, $destdir) = @_;
+    my ( $self, $pagename, $destdir ) = @_;
 
-  my $page = $mw->get_page( { title => $pagename } );
-  if (!defined($page)) {
-	report_error( $mw, "wiki does not exist\n" );
-  }
+    my $page = $self->get_page( { title => $pagename } );
+    if ( !defined $page ) {
+        $self->report_error("wiki does not exist\n");
+    }
 
-  my $content = $page->{'*'};
-  if (!defined($content)) {
-	report_error( $mw, "pages do not exist\n" );
-  }
+    my $content = $page->{q(*)};
+    if ( !defined $content ) {
+        $self->("pages do not exist\n");
+    }
 
-  $pagename=$page->{'title'};
-  # Replace spaces by underscore in the page name
-  $pagename =~ s/ /_/g;
-  $pagename =~ s/\//%2F/g;
-  my $file = IO::File->new( "$destdir/$pagename.mw", q{>} );
-  $file->print( $content );
-  $file->close();
+    $pagename = $page->{'title'};
+
+    # Replace spaces by underscore in the page name
+    $pagename =~ s/ /_/smg;
+    $pagename =~ s/\//%2F/smxg;
+    my $file = IO::File->new( "$destdir/$pagename.mw", q{>} );
+    $file->print($content);
+    $file->close();
+    return $content;
 }
 
 # wiki_delete_page <page_name>
 #
-# delete the page with name <page_name> from the wiki referenced
-# in the global variable $mw
+# delete the page with name <page_name> from the wiki
 sub wiki_delete_page {
-  my $pagename = $_[0];
+    my ( $self, $pagename ) = @_;
 
-  my $exist=$mw->get_page({title => $pagename});
+    my $exist = $self->get_page( { title => $pagename } );
 
-  if (defined($exist->{'*'})) {
-	$mw->edit({ action => 'delete',
-			   title => $pagename})
-	  || report_error( $mw );
-  } else {
-	die "no page with such name found: $pagename\n";
-  }
+    if ( !defined( $exist->{q(*)} ) ) {
+        die "no page with such name found: $pagename\n";
+    }
+    return $self->edit(
+        {
+            action => 'delete',
+            title  => $pagename
+        }
+    ) || $self->report_error;
 }
 
 # wiki_editpage <wiki_page> <wiki_content> <wiki_append> [-c=<category>] [-s=<summary>]
 #
-# Edit a page named <wiki_page> with content <wiki_content> on the wiki
-# referenced with the global variable $mw
+# Edit a page named <wiki_page> with content <wiki_content>
 # If <wiki_append> == true : append <wiki_content> at the end of the actual
 # content of the page <wiki_page>
 # If <wik_page> doesn't exist, that page is created with the <wiki_content>
 sub wiki_editpage {
-  my $wiki_page = $_[0];
-  my $wiki_content = $_[1];
-  my $wiki_append = $_[2];
-  my $summary = "";
-  my ($summ, $cat) = ();
-  GetOptions('s=s' => \$summ, 'c=s' => \$cat);
+    my ( $self, $wiki_page, $wiki_content, $wiki_append ) = @_;
+    my $summary = q();
+    my ( $summ, $cat ) = ();
+    GetOptions( 's=s' => \$summ, 'c=s' => \$cat );
 
-  my $append = 0;
-  if (defined($wiki_append) && $wiki_append eq 'true') {
-	$append=1;
-  }
+    my $append = 0;
+    if ( defined($wiki_append) && $wiki_append eq 'true' ) {
+        $append = 1;
+    }
 
-  my $previous_text ="";
+    my $previous_text = q();
 
-  if ($append) {
-	my $ref = $mw->get_page( { title => $wiki_page } );
-	$previous_text = $ref->{'*'};
-  }
+    if ($append) {
+        my $ref = $self->get_page( { title => $wiki_page } );
+        $previous_text = $ref->{q(*)};
+    }
 
-  my $text = $wiki_content;
-  if (defined($previous_text)) {
-	$text="$previous_text$text";
-  }
+    my $text = $wiki_content;
+    if ( defined $previous_text ) {
+        $text = "$previous_text$text";
+    }
 
-  # Eventually, add this page to a category.
-  if (defined($cat)) {
-	my $category_name="[[Category:$cat]]";
-	$text="$text\n $category_name";
-  }
-  if (defined($summ)) {
-	$summary=$summ;
-  }
+    # Eventually, add this page to a category.
+    if ( defined $cat ) {
+        my $category_name = "[[Category:$cat]]";
+        $text = "$text\n $category_name";
+    }
+    if ( defined $summ ) {
+        $summary = $summ;
+    }
 
-  $mw->edit( { action => 'edit', title => $wiki_page, summary => $summary, text => "$text"} );
+    return $self->edit(
+        {
+            action  => 'edit',
+            title   => $wiki_page,
+            summary => $summary,
+            text    => "$text"
+        }
+    );
 }
 
 # wiki_getallpagename [<category>]
 #
-# Fetch all pages of the wiki referenced by the global variable $mw
-# and print the names of each one in the file all.txt with a new line
-# ("\n") between these.
-# If the argument <category> is defined, then this function get only the pages
+# Fetch all pages of the wiki and print the names of each one in the
+# file all.txt with a new line ("\n") between these.  If the argument
+# <category> is defined, then this function get only the pages
 # belonging to <category>.
 sub wiki_getallpagename {
-  # fetch the pages of the wiki
-  if (defined($_[0])) {
-	my $mw_pages = $mw->list ( { action => 'query',
-								list => 'categorymembers',
-								cmtitle => "Category:$_[0]",
-								cmnamespace => 0,
-								cmlimit => 500 },
-							)
-	  || report_error( $mw );
-	my $file = IO::File->new( "all.txt", q{>} );
-	foreach my $page (@{$mw_pages}) {
-	  $file->print( "$page->{title}\n" );
-	}
-	$file->close();
+    my ( $self, $category ) = @_;
 
-  } else {
-	my $mw_pages = $mw->list({
-	  action => 'query',
-	  list => 'allpages',
-	  aplimit => 500,
-	}) || report_error( $mw );
-	my $file = IO::File->new( "all.txt", q{>});
-	foreach my $page (@{$mw_pages}) {
-	  $file->print( "$page->{title}\n" );
-	}
-	$file->close();
-  }
+    my $mw_pages;
+
+    # fetch the pages of the wiki
+    if ( defined $category ) {
+        $mw_pages = $self->list(
+            {
+                action      => 'query',
+                list        => 'categorymembers',
+                cmtitle     => "Category:$category",
+                cmnamespace => 0,
+                cmlimit     => 500
+            }
+        ) || $self->report_error;
+        my $file = IO::File->new( 'all.txt', q{>} );
+        foreach my $page ( @{$mw_pages} ) {
+            $file->print("$page->{title}\n");
+        }
+        $file->close();
+
+    }
+    else {
+        $mw_pages = $self->list(
+            {
+                action  => 'query',
+                list    => 'allpages',
+                aplimit => 500,
+            }
+        ) || $self->report_error;
+        my $file = IO::File->new( 'all.txt', q{>} );
+        foreach my $page ( @{$mw_pages} ) {
+            $file->print("$page->{title}\n");
+        }
+        $file->close();
+    }
+    return $mw_pages;
 }
 
 sub wiki_upload_file {
-  my $file_name = $_[0];
-  my $resultat = $mw->edit ( {
-	action => 'upload',
-	filename => $file_name,
-	comment => 'upload a file',
-	file => [ $file_name ],
-	ignorewarnings=>1,
-  }, {
-	skip_encoding => 1
-  } ) || reporT_error( $mw );
+    my ( $self, $file_name ) = @_;
+    my $result = $self->edit(
+        {
+            action         => 'upload',
+            filename       => $file_name,
+            comment        => 'upload a file',
+            file           => [$file_name],
+            ignorewarnings => 1,
+        },
+        {
+            skip_encoding => 1
+        }
+    ) || $self->report_error;
+    return $result;
 }
 
+sub new() {
+    my $wiki_address = "http://$ENV{'SERVER_ADDR'}:$ENV{'PORT'}";
+    my $wiki_url     = "$wiki_address$ENV{'WIKI_DIR_NAME'}/api.php";
+    my $self         = MediaWiki::API->new( { api_url => $wiki_url } );
+    bless $self, 'MABSTestHarness';
 
+    return $self;
+}
 
-# Main part of this script: parse the command line arguments
-# and select which function to execute
-my $fct_to_call = shift;
+sub main {
+    my $call = shift @_;
+	my @arg = @_;
+    my $self = MABSTestHarness->new();
 
-wiki_login($wiki_admin, $wiki_admin_pass);
+    # Main part of this script: parse the command line arguments
+    # and select which function to execute
 
-my %functions_to_call =
-  qw(
-	  upload_file    wiki_upload_file
-	  get_page       wiki_getpage
-	  delete_page    wiki_delete_page
-	  edit_page      wiki_editpage
-	  getallpagename wiki_getallpagename
-  );
-die "$0 ERROR: wrong argument\n"
-  unless exists $functions_to_call{$fct_to_call};
-&{$functions_to_call{$fct_to_call}}(@ARGV);
+    # These should be exported in test-gitmw.pl
+    my $wiki_admin      = "$ENV{'WIKI_ADMIN'}";
+    my $wiki_admin_pass = "$ENV{'WIKI_PASSW'}";
+
+    $self->wiki_login( $wiki_admin, $wiki_admin_pass );
+
+    my %function = (
+        upload_file    => 'wiki_upload_file',
+        get_page       => 'wiki_getpage',
+        delete_page    => 'wiki_delete_page',
+        edit_page      => 'wiki_editpage',
+        getallpagename => 'wiki_getallpagename',
+    );
+    if ( !$call or !exists $function{$call} ) {
+        die "$call ERROR: wrong argument\n";
+    }
+	my $f = $function{$call};
+    $self->$f(@arg);
+    exit 0;
+
+}
+
+main(@ARGV);
