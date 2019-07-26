@@ -1404,7 +1404,7 @@ sub parse_command {
 
 sub fatal_error {
     my ( $self, $action ) = @_;
-    my $url = $self->url;
+    my $url = $self->remote_url;
 
     $self->to_user->print("fatal: could not $action.\n");
     $self->to_user->print("fatal: '$url' does not appear to be a mediawiki\n");
@@ -1462,7 +1462,7 @@ sub get_all_mediafiles {
         }
     );
     if ( !defined $mw_pages ) {
-        my $url = $self->url;
+        my $url = $self->remote_url;
         $self->to_user->print(<<"EOF");
 fatal: could not get the list of pages for media files.
 fatal: '$url' does not appear to be a mediawiki
@@ -1572,7 +1572,7 @@ sub get_mediafile_for_page_revision {
 sub download_mediafile {
     my $self         = shift;
     my $download_url = shift;
-    my $url          = $self->url;
+    my $url          = $self->remote_url;
     my $wiki_name    = $self->wiki_name;
 
     my $response = $self->{ua}->get($download_url);
