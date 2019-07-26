@@ -446,6 +446,11 @@ setup_dir () {
 	fi
 }
 
+setup_git_id () {
+	git config --global user.email "$GIT_EMAIL"
+	git config --global user.name "$GIT_NAME"
+}
+
 create_db () {
 	installDir=$1
 	dbDir=$2
@@ -486,6 +491,7 @@ wiki_install () {
 	) || exit 1
 
 	create_db $dir $tmp $server
+	setup_git_id
 
 	echo "Your wiki has been installed: $server"
 }

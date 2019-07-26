@@ -26,23 +26,23 @@ use MediaWiki::API;
 use Getopt::Long;
 use DateTime::Format::ISO8601;
 use IO::File;
+
 use open ':encoding(utf8)';
-use constant SLASH_REPLACEMENT => "%2F";
 use strict;
+use warnings;
 
 # These should be exported in test-gitmw.pl
-my $wiki_address = "http://$ENV{'SERVER_ADDR'}".":"."$ENV{'PORT'}";
+my $wiki_address = "http://$ENV{'SERVER_ADDR'}:$ENV{'PORT'}";
 my $wiki_url = "$wiki_address$ENV{'WIKI_DIR_NAME'}/api.php";
 my $wiki_admin = "$ENV{'WIKI_ADMIN'}";
 my $wiki_admin_pass = "$ENV{'WIKI_PASSW'}";
-my $mw = MediaWiki::API->new;
-$mw->{config}->{api_url} = $wiki_url;
 
 sub report_error {
   my ($mw, $msg) = @_;
-  my $err = "";
-  $err = "$msg: "
-	if defined $msg;
+  my $err = '';
+  if ( defined $msg ) {
+	  $err = "$msg: ";
+  }
   die $err . $mw->{error}->{code} . ":"
 	. $mw->{error}->{details} . "\n";
 }

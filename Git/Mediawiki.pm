@@ -87,6 +87,19 @@ Readonly my $EMPTY => q{};
 Readonly my $HTTP_CODE_OK             => 200;
 Readonly my $HTTP_CODE_PAGE_NOT_FOUND => 404;
 
+# Debug Levels
+Readonly my $DEBUG => 777;
+Readonly my $NOISY => 776;
+
+sub debug {
+    my ( $self, $msg, $level ) = @_;
+
+    if ( defined $ENV{DEBUG_LEVEL} && $level > $ENV{DEBUG_LEVEL} ) {
+        $self->to_user->print("$msg\n");
+    }
+    return 1;
+}
+
 # Mediawiki filenames can contain forward slashes. This variable
 # decides by which pattern they should be replaced
 sub SLASH_REPLACEMENT {
@@ -471,6 +484,23 @@ sub get_ssl_opts {
     return %ssl_opts;
 }
 
+sub report_error {
+    my ( $self, $msg, $exit_code ) = @_;
+
+    $self->to_user->print(
+        sprintf(
+            '%s:  (error %s:%s)',
+            $msg,
+            $self->{error}->{code},
+            $self->{error}->{details}
+          )
+          . "\n"
+    );
+    if ($exit_code) {
+        exit $exit_code;
+    }
+}
+
 sub check_credentials {
     my $self       = shift;
     my $credential = {
@@ -490,17 +520,12 @@ sub check_credentials {
             qq(Logged in mediawiki user "$credential->{username}".\n));
     }
     else {
-        $self->to_user->print(
-                qq(Failed to log in mediawiki user "$credential->{username}" )
-              . "on $self->{remote_url}\n" );
-        $self->to_user->print(
-            sprintf( '  (error %s:%s)',
-                $self->{error}->{code},
-                $self->{error}->{details} )
-              . "\n"
-        );
         $self->repo->credential( $credential, 'reject' );
-        exit 1;
+        $self->report_error(
+            qq(Failed to log in mediawiki user "$credential->{username}")
+              . " on $self->{remote_url}\n",
+            1
+        );
     }
     return 1;
 }
@@ -604,13 +629,11 @@ sub upload_file {
             reason => $summary
         };
         if ( !$self->edit($query) ) {
-            $self->to_user->print("Failed to delete file on remote wiki\n");
-            $self->to_user->print(
-                "Check your permissions on the remote site. Error code:\n");
-            $self->to_user->print( $self->{error}->{code} . q{:}
-                  . $self->{error}->{details}
-                  . "\n" );
-            exit 1;
+            $self->report_error(
+                "Failed to delete file on remote wiki\n"
+                  . 'Check your permissions on the remote ' . 'site.',
+                1
+            );
         }
     }
     else {
@@ -634,8 +657,8 @@ sub upload_file {
                     skip_encoding => 1
                 }
               )
-              || die $self->{error}->{code} . q{:}
-              . $self->{error}->{details} . "\n";
+              || $self->report_error( "Couldn't push file: $complete_file_name",
+                1 );
             my $last_file_page = $self->get_page( { title => $path } );
             $newrevid = $last_file_page->{revid};
             $self->to_user->print(
@@ -677,7 +700,7 @@ sub get_pages {
     $self->to_user->print("Listing pages on remote wiki...\n");
 
     my $user_defined;
-    if ( $self->tracked_pages and $self->tracked_pages ) {
+    if ( $self->tracked_pages ) {
         $user_defined = 1;
 
         # The user provided a list of pages titles, but we
@@ -773,7 +796,8 @@ sub import_revids {
 
     my $n              = 0;
     my $n_actual       = 0;
-    my $last_timestamp = 0;   # Placeholder in case $rev->timestamp is undefined
+    my $last_timestamp = 0;    # Placeholder in case $rev->timestamp is
+                               # undefined
 
     foreach my $pagerevid ( @{$revision_ids} ) {
 
@@ -972,19 +996,12 @@ sub push_file {
             if ( $self->{error}->{code} == 3 ) {
 
                 # edit conflicts, considered as non-fast-forward
-                $self->to_user->print( 'Warning: Error '
-                      . $self->{error}->{code}
-                      . ' from mediawiki: '
-                      . $self->{error}->{details}
-                      . ".\n" );
+                $self->report_error('Edit conflict');
                 return ( $oldrevid, 'non-fast-forward' );
             }
             else {
                 # Other errors. Shouldn't happen => just die()
-                die 'Fatal: Error '
-                  . $self->{error}->{code}
-                  . ' from mediawiki: '
-                  . $self->{error}->{details} . "\n";
+                $self->report_error( 'Fatal', 1 );
             }
         }
         $newrevid = $result->{edit}->{newrevid};
@@ -1020,7 +1037,7 @@ sub cmd_push {
         if ( $local eq $EMPTY ) {
             $self->to_user->print(
                 "Cannot delete remote branch on a MediaWiki\n");
-            $self->send_to_git("error ${remote} cannot delete\n");
+            $self->send_to_git("error $remote cannot delete\n");
             next;
         }
         if ( $remote ne 'refs/heads/master' ) {
@@ -1157,7 +1174,7 @@ sub push_revision {
     }
 
     $self->push_commits( $remote, @commit_pairs );
-    $self->send_to_git("ok ${remote}\n");
+    $self->send_to_git("ok $remote\n");
     return 1;
 }
 
@@ -1252,8 +1269,8 @@ sub get_tracked_categories {
                 cmlimit => 'max'
             }
           )
-          or die $self->{error}->{code} . ': '
-          . $self->{error}->{details} . "\n";
+          or $self->report_error(
+            "Could not query category members for '$category'", 1 );
         foreach my $page ( @{$mw_pages} ) {
             $pages->{ $page->{title} } = $page;
         }
@@ -1284,8 +1301,8 @@ sub get_tracked_namespaces {
                 aplimit     => 'max'
             }
           )
-          || die $self->{error}->{code} . ': '
-          . $self->{error}->{details} . "\n";
+          || $self->report_error(
+            "Could not list all pages in namespace '$local_namespace", 1 );
         $self->to_user->print(
                 "$#{$mw_pages} found in namespace $local_namespace "
               . "($namespace_id)\n" );
@@ -1300,6 +1317,7 @@ sub get_all_pages {
     my ($self) = @_;
 
     # No user-provided list, get the list of pages from the API.
+    $self->debug("Getting all pages...");
     my $mw_pages = $self->list(
         {
             action  => 'query',
@@ -1310,7 +1328,10 @@ sub get_all_pages {
     if ( !defined $mw_pages ) {
         $self->fatal_error('get the list of wiki pages');
     }
+    $self->debug( 'Found ' . scalar @{$mw_pages} . ' pages...', $DEBUG );
     foreach my $page ( @{$mw_pages} ) {
+        $self->debug( 'Adding "' . $page->{title} . '" to the queue...',
+            $DEBUG );
         $self->{pages}->{ $page->{title} } = $page;
     }
 
@@ -1382,9 +1403,8 @@ sub parse_command {
 }
 
 sub fatal_error {
-    my $self   = shift;
-    my $action = shift;
-    my $url    = $self->url;
+    my ( $self, $action ) = @_;
+    my $url = $self->url;
 
     $self->to_user->print("fatal: could not $action.\n");
     $self->to_user->print("fatal: '$url' does not appear to be a mediawiki\n");
@@ -1400,15 +1420,8 @@ sub fatal_error {
         $self->to_user->print(
             "fatal: make sure '$url/api.php' is a valid page.\n");
     }
-    $self->to_user->print(
-        sprintf(
-            'fatal: (error %s:%s)',
-            $self->{error}->{code},
-            $self->{error}->{details}
-          )
-          . "\n"
-    );
-    exit 1;
+    $self->report_error( 'fatal', 1 );
+    exit;
 }
 
 ## Functions for listing pages on the remote wiki
@@ -1737,9 +1750,10 @@ sub fetch_revisions_for_page {
         }
     }
     if ( $self->shallow_import && @page_revs ) {
-        $self->to_user->print("  Found 1 revision (shallow import).\n");
-        @page_revs =
-          reverse sort { $a->{revid} <=> $b->{revid} } (@page_revs);
+        $self->to_user->print("  returning 1 revision (shallow import).\n");
+        my @sorted = sort { $a->{revid} <=> $b->{revid} } @page_revs;
+
+        @page_revs = reverse @sorted;
         return $page_revs[0];
     }
     $self->to_user->print("  Found ${revnum} revision(s).\n");
@@ -1748,17 +1762,16 @@ sub fetch_revisions_for_page {
 
 sub fetch_revisions {
     my ( $self, $pages, $fetch_from ) = shift;
-    my @pages = @{$pages};
 
     my @revisions = ();
     my $n         = 1;
-    foreach my $page (@pages) {
-        my $id = $page->{pageid};
-        $self->to_user->print( "page ${n}/", scalar(@pages), ': ',
-            $page->{title}, "\n" );
+    my $total     = scalar( keys %{$pages} );
+    foreach my $title ( keys %{$pages} ) {
+        my $id = $pages->{$title}->{pageid};
+        $self->to_user->print("page ${n}/$total: $title\n");
         $n++;
         my @page_revs =
-          $self->fetch_revisions_for_page( $page, $id, $fetch_from );
+          $self->fetch_revisions_for_page( $pages->{$title}, $id, $fetch_from );
         @revisions = ( @page_revs, @revisions );
     }
 
@@ -1948,10 +1961,8 @@ sub import_ref_by_pages {
     my $self       = shift;
     my $fetch_from = shift;
     my $pages      = $self->get_pages();
-    my @page_list  = values %{$pages};
 
-    my ( $n, @revisions ) = $self->fetch_revisions( \@page_list, $fetch_from );
-
+    my ( $n, @revisions ) = $self->fetch_revisions( $pages, $fetch_from );
     @revisions = sort { $a->{revid} <=> $b->{revid} } @revisions;
     my @revision_ids = map { $_->{revid} } @revisions;
 
@@ -2016,7 +2027,8 @@ EOF
     my $mw = Git::Mediawiki->new(@arg);
 
     # Commands parser
-    while ( chomp( my $line = $mw->from_git->getline ) ) {
+    while ( my $line = $mw->from_git->getline ) {
+        chomp($line);
 
         if ( !$mw->parse_command($line) ) {
             last;

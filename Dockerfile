@@ -8,6 +8,7 @@ ARG MW_VERSION_MINOR=0
 ARG MW_TGZ=mediawiki-${MW_VERSION_MAJOR}.${MW_VERSION_MINOR}.tar.gz
 ARG MW_URLBASE=https://releases.wikimedia.org/mediawiki
 ARG MW_URL=${MW_URLBASE}/${MW_VERSION_MAJOR}/${MW_TGZ}
+ARG DEBUG_LEVEL=999
 
 RUN mkdir -p /wiki/var/lighttpd	/wiki/db /wiki/www /wiki/log &&	\
 	chmod 1777 /wiki/db /wiki/log /wiki/var/lighttpd
