@@ -2,8 +2,6 @@
 # -*-tab-width: 2; fill-column: 76 -*-
 # vi:shiftwidth=2 tabstop=2 textwidth=76
 
-use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
-
 # Copyright (C) 2013
 #     Benoit Person <benoit.person@ensimag.imag.fr>
 #     Celestin Matte <celestin.matte@ensimag.imag.fr>
@@ -28,9 +26,11 @@ use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 # Set of tools for git repo with a mediawiki remote.
 # Documentation & bugtracker: https://github.com/MWStake/Git-MediaWiki/
 
+use utf8;
 use strict;
 use warnings;
 
+use lib grep{$_} split /:/smx, $ENV{GITPERLLIB} || q{.};
 use Getopt::Long;
 use URI::URL qw(url);
 use LWP::UserAgent;
@@ -38,11 +38,7 @@ use HTML::TreeBuilder;
 
 use Git;
 use MediaWiki::API;
-use Git::MediaWiki qw(connect_maybe EMPTY HTTP_CODE_PAGE_NOT_FOUND);
-
-# By default, use UTF-8 to communicate with Git and the user
-binmode STDERR, ':encoding(UTF-8)';
-binmode STDOUT, ':encoding(UTF-8)';
+use Git::MediaWiki;
 
 # Global parameters
 my $verbose = 0;

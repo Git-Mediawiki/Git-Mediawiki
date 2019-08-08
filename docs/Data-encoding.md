@@ -4,9 +4,14 @@ Data encoding is a little tricky here. The mediawiki should be encoded in utf8. 
 
 Typically, every character is authorized in the URL of a mediawiki page (and consequently its title). When the file is to be imported locally, a correct file name has to be found. UTF-8 encoding is the best to allow this. It is very important to make sure that mediawiki files and local files keep the same encoding for both its title and its content.
 
-The entire perl script is told that utf8 is the norm thanks to
+Originally, this code used
 
     use encoding 'utf8';
+
+But this is changed to
+
+    use utf8;
+
 
 ## MediaWiki -> Git
 

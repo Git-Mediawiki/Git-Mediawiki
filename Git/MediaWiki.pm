@@ -23,7 +23,7 @@ package Git::MediaWiki;    # -*-tab-width: 4; fill-column: 76 -*-
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-use 5.008;
+use utf8;
 use strict;
 use warnings;
 
@@ -130,7 +130,7 @@ sub _fh {
 
     if ($fh) {
 
-        # By default, use UTF-8 to communicate with Git and the user
+        # Use UTF-8 to communicate with Git and the user
         binmode $fh, ':encoding(UTF-8)';
         $self->{$key} = IO::Handle->new();
         $self->{$key}->fdopen( fileno($fh), $mode );

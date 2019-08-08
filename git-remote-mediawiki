@@ -28,10 +28,11 @@
 # Gateway between Git and MediaWiki.
 # Documentation & bugtracker: https://github.com/MWStake/Git-MediaWiki/
 
+use utf8;
 use strict;
 use warnings;
 
-use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
+use lib grep{$_} split /:/smx, $ENV{GITPERLLIB} || q{.};
 use Git::MediaWiki;
 
 Git::MediaWiki::git_remote_mediawiki( @ARGV );

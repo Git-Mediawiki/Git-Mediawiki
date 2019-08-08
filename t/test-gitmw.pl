@@ -24,6 +24,7 @@
 
 package MABSTestHarness;
 
+use utf8;
 use MediaWiki::API;
 use Getopt::Long;
 use DateTime::Format::ISO8601;
