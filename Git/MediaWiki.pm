@@ -1,4 +1,4 @@
-package Git::Mediawiki;    # -*-tab-width: 4; fill-column: 76 -*-
+package Git::MediaWiki;    # -*-tab-width: 4; fill-column: 76 -*-
 
 # vi:shiftwidth=4 tabstop=4 textwidth=76
 
@@ -220,6 +220,7 @@ sub fetch_strategy {
 sub basetimestamp {
     my ( $self, $index, $val ) = @_;
 
+	$index ||= 0;
     my $ret = $self->{basetimestamp}->{$index};
     if ( defined $val ) {
         $self->{basetimestamp}->{$index} = $val;
@@ -538,7 +539,7 @@ sub new {
     my $remote_name = shift;
     my $remote_url  = shift;
 
-    $self = MediaWiki::API->new;
+    $self = MediaWiki::API->new( { diagnostics => $ENV{GIT_MW_DIAGNOSTICS} } );;
     bless $self, 'Git::Mediawiki';
     $self->from_git(*STDIN);
     $self->to_user(*STDERR);
@@ -762,7 +763,7 @@ sub get_last_remote_revision {
 
         my $lastrev = pop @{ $result->{query}->{pages}->{$id}->{revisions} };
 
-        $self->basetimestamp( $lastrev->{revid}, $lastrev->{timestamp} );
+        $self->basetimestamp( $lastrev->{revid}, $lastrev->{timestamp} || 0 );
 
         $max_rev_num = (
               $lastrev->{revid} > $max_rev_num
@@ -984,7 +985,7 @@ sub push_file {
                 action        => 'edit',
                 summary       => $summary,
                 title         => $title,
-                basetimestamp => $self->basetimestamp($oldrevid),
+                basetimestamp => $self->basetimestamp($oldrevid, 0),
                 text          => $self->clean( $file_content, $page_created ),
             },
             {
@@ -1173,37 +1174,37 @@ sub push_revision {
         push @commit_pairs, $self->get_entire_history($local);
     }
 
-    $self->push_commits( $remote, @commit_pairs );
+    $self->push_commits( $remote, \@commit_pairs );
     $self->send_to_git("ok $remote\n");
     return 1;
 }
 
 sub push_commits {
-    my $self         = shift;
-    my $remote       = shift;
-    my @commit_pairs = @_;
+    my ($self, $remote, $commits) = @_;
 
-    foreach my $commit_info_split (@commit_pairs) {
-        my $sha1_child = @{$commit_info_split}[0];
-        my $sha1       = @{$commit_info_split}[1];
-        my $diff_infos =
-          $self->repo->command(
-            [ 'diff-tree', '-r', '--raw', '-z', ${sha1_child}, ${sha1} ] );
+    foreach my $commit_info_split (@{$commits}) {
+		if ( ref $commit_info_split eq 'ARRAY' ) {
+			my $sha1_child = @{$commit_info_split}[0];
+			my $sha1       = @{$commit_info_split}[1];
+			my $diff_infos =
+			  $self->repo->command(
+				  [ 'diff-tree', '-r', '--raw', '-z', ${sha1_child}, ${sha1} ] );
 
-        # TODO: we could detect rename, and encode them with a #redirect
-        # TODO: on the wiki. For now, it's just a delete+add
-        my @diff_info_list = split /\0/smx, $diff_infos;
+			# TODO: we could detect rename, and encode them with a #redirect
+			# TODO: on the wiki. For now, it's just a delete+add
+			my @diff_info_list = split /\0/smx, $diff_infos;
 
-        # Keep the subject line of the commit message as mediawiki comment
-        # for the revision
-        my $commit_msg =
-          $self->repo->command(
-            [ 'log', '--no-walk', '--format="%s"', ${sha1} ] );
-        chomp $commit_msg;
+			# Keep the subject line of the commit message as mediawiki comment
+			# for the revision
+			my $commit_msg =
+			  $self->repo->command(
+				  [ 'log', '--no-walk', '--format="%s"', ${sha1} ] );
+			chomp $commit_msg;
 
-        # Push every blob
-        $self->push_every_blob( $remote, $sha1, $commit_msg, @diff_info_list );
-    }
+			# Push every blob
+			$self->push_every_blob( $remote, $sha1, $commit_msg, @diff_info_list );
+		}
+	}
     return;
 }
 

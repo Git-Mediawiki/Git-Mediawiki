@@ -10,7 +10,7 @@
 # License: GPL v2 or later
 
 
-test_description='Test the Git Mediawiki remote helper: git clone'
+test_description='Test the Git MediaWiki remote helper: git clone'
 
 . ./test-gitmw-lib.sh
 . ./sharness/sharness.sh
@@ -159,7 +159,7 @@ test_expect_success 'Git clone works with multiple specific page cloned ' '
 	wiki_check_content mw_dir_9/Nyancat.mw Nyancat
 '
 
-test_expect_success 'Mediawiki-clone of several specific pages on wiki' '
+test_expect_success 'MediaWiki-clone of several specific pages on wiki' '
 	wiki_reset &&
 	wiki_editpage foo "foo 1" false &&
 	wiki_editpage bar "bar 1" false &&

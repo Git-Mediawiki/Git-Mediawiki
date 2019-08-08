@@ -26,7 +26,7 @@ use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
 
 
 # Set of tools for git repo with a mediawiki remote.
-# Documentation & bugtracker: https://github.com/MWStake/Git-Mediawiki/
+# Documentation & bugtracker: https://github.com/MWStake/Git-MediaWiki/
 
 use strict;
 use warnings;
@@ -38,7 +38,7 @@ use HTML::TreeBuilder;
 
 use Git;
 use MediaWiki::API;
-use Git::Mediawiki qw(connect_maybe EMPTY HTTP_CODE_PAGE_NOT_FOUND);
+use Git::MediaWiki qw(connect_maybe EMPTY HTTP_CODE_PAGE_NOT_FOUND);
 
 # By default, use UTF-8 to communicate with Git and the user
 binmode STDERR, ':encoding(UTF-8)';

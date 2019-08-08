@@ -17,7 +17,7 @@ mkfileDir := $(patsubst %/,%,$(dir $(mkfilePath)))
 CMD ?= test
 PREFIX ?= /usr
 files ?= ${mkfileDir}/files
-GIT_MEDIAWIKI_PM=Git/Mediawiki.pm
+GIT_MEDIAWIKI_PM=Git/MediaWiki.pm
 SCRIPT_PERL=${files}/git-remote-mediawiki
 SCRIPT_PERL+=${files}/git-mw
 MW_VERSION_MAJOR ?= 1.33
@@ -30,8 +30,6 @@ INSTALL = install
 
 SCRIPT_PERL_FULL=$(patsubst %,$(shell pwd)/%,$(SCRIPT_PERL))
 INSTLIBDIR=$(PREFIX)/share/perl5/
-DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
-INSTLIBDIR_SQ = $(subst ','\'',$(INSTLIBDIR))
 
 test:
 	echo running target ${CMD}
@@ -40,9 +38,9 @@ test:
 check: perlcritic test
 
 install_pm:
-	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(INSTLIBDIR_SQ)Git'
+	$(INSTALL) -d -m 755 '$(DESTDIR)$(INSTLIBDIR)Git'
 	cd ${files} && $(INSTALL) -m 644 $(GIT_MEDIAWIKI_PM) \
-		'$(DESTDIR_SQ)$(INSTLIBDIR_SQ)/$(GIT_MEDIAWIKI_PM)'
+		'$(DESTDIR)$(INSTLIBDIR)/$(GIT_MEDIAWIKI_PM)'
 
 install: install_pm
 	$(INSTALL) $(SCRIPT_PERL) $(DESTDIR)$(PREFIX)/lib/git-core/
@@ -52,12 +50,7 @@ perlcritic:
 	-perlcritic -2 $(SCRIPT_PERL)
 
 dockerBuild:
-	docker build -t mabs .													\
-		--build-arg MW_VERSION_MAJOR=${MW_VERSION_MAJOR}					\
-		--build-arg MW_VERSION_MINOR=${MW_VERSION_MINOR}					\
-		--build-arg MW_TGZ=${MW_TGZ}										\
-		--build-arg MW_URLBASE=${MW_URLBASE}								\
-		--build-arg MW_URL=${MW_URL}
+	docker build -t mabs .
 
 docker:
 	. t/test.config && docker run --rm -p $$PORT:$$PORT -v `pwd`/t:/t mabs	\

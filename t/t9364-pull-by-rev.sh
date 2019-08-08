@@ -1,6 +1,6 @@
 #!/bin/sh
 
-test_description='Test the Git Mediawiki remote helper: git pull by revision'
+test_description='Test the Git MediaWiki remote helper: git pull by revision'
 
 . ./test-gitmw-lib.sh
 . ./push-pull-tests.sh

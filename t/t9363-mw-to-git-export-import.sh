@@ -11,7 +11,7 @@
 
 # tests for git-remote-mediawiki
 
-test_description='Test the Git Mediawiki remote helper: git push and git pull simple test cases'
+test_description='Test the Git MediaWiki remote helper: git push and git pull simple test cases'
 
 . ./test-gitmw-lib.sh
 . ./sharness/sharness.sh

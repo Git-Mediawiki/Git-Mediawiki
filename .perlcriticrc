@@ -1,0 +1,5 @@
+# -*- conf -*-
+
+[BuiltinFunctions::ProhibitStringyEval]
+allow_includes = 1
+allow_includes = 0

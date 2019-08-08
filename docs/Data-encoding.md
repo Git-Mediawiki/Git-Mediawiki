@@ -8,11 +8,11 @@ The entire perl script is told that utf8 is the norm thanks to
 
     use encoding 'utf8';
 
-## Mediawiki -> Git
+## MediaWiki -> Git
 
 Since utf8 is the norm, the real character that raises a problem is '/'. It needs to be replaced somehow to avoid unwanted directories to be created. In the script, it is replaced by a string described by the variable $slash_replacement. 
 
-## Git -> Mediawiki
+## Git -> MediaWiki
 
 The data that need to be send to mediawiki are stored in git blobs. To get that data, the command `git cat-file blob <sha1>` is used. Consequently, further encoding is needed here
 

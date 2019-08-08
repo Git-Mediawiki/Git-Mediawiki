@@ -26,12 +26,12 @@
 # 02110-1301, USA.
 
 # Gateway between Git and MediaWiki.
-# Documentation & bugtracker: https://github.com/MWStake/Git-Mediawiki/
+# Documentation & bugtracker: https://github.com/MWStake/Git-MediaWiki/
 
 use strict;
 use warnings;
 
 use lib grep{$_} split(/:/, $ENV{GITPERLLIB} || ".");
-use Git::Mediawiki;
+use Git::MediaWiki;
 
-Git::Mediawiki::git_remote_mediawiki( @ARGV );
+Git::MediaWiki::git_remote_mediawiki( @ARGV );

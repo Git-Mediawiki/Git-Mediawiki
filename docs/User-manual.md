@@ -38,9 +38,9 @@ To access HTTPS wikis, you may also need
 
 On Linux, the package is called `perl-lwp-protocol-https`, or `liblwp-protocol-https-perl` on Debian-based systems.
 
-### Git-Mediawiki
+### Git-MediaWiki
 
-The latest version of Git-Mediawiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed. The recommended way to install Git-Mediawiki is to install both Git itself and Git-Mediawiki at the same time (so that you get the latest version of both). If you install Git-Mediawiki on top of an existing Git installation, you need Git >= 1.8.3, or use an old Git-Mediawiki version (the last commit which works with older versions is [commit edca4152](https://github.com/git/git/commit/edca4152560522a431a51fc0a06147fc680b5b18)).
+The latest version of Git-MediaWiki is available in Git's source tree, in the directory `contrib/mw-to-git`. You can download it from http://git.kernel.org/?p=git/git.git;a=tree;f=contrib/mw-to-git if needed. The recommended way to install Git-MediaWiki is to install both Git itself and Git-MediaWiki at the same time (so that you get the latest version of both). If you install Git-MediaWiki on top of an existing Git installation, you need Git >= 1.8.3, or use an old Git-MediaWiki version (the last commit which works with older versions is [commit edca4152](https://github.com/git/git/commit/edca4152560522a431a51fc0a06147fc680b5b18)).
 
 #### Installing from source
 
@@ -48,14 +48,14 @@ After configuring Git's tree (either `./configure --prefix=...` or edit `config.
 
 #### Installing manually
 
-Alternatively, you may install Git-Mediawiki manually:
+Alternatively, you may install Git-MediaWiki manually:
 
 1. Copy or symlink `git-remote-mediawiki` to Git's exec path (run `git --exec-path` to find out where it is). Make sure it is called `git-remote-mediawiki` with no suffix, _not_ `git-remote-mediawiki.perl`.
 2. Ensure that `git-remote-mediawiki` is marked as executable.
 3. Optionally, do the same for `git-mw`, which contains various helper commands for Git/MediaWiki integration.
-4. Set your `PERL5LIB` environment variable to include the necessary directories: `$GIT/perl:$GIT/contrib/mw-to-git`, where `$GIT` is the path to your Git source tree. Without this step, you may receive errors about missing Perl dependencies `Git.pm` and/or `Git::Mediawiki.pm`.
+4. Set your `PERL5LIB` environment variable to include the necessary directories: `$GIT/perl:$GIT/contrib/mw-to-git`, where `$GIT` is the path to your Git source tree. Without this step, you may receive errors about missing Perl dependencies `Git.pm` and/or `Git::MediaWiki.pm`.
 
-## Getting started with Git-Mediawiki
+## Getting started with Git-MediaWiki
 
 Then, the first operation you should do is cloning the remote mediawiki. To do so, run the command
 
@@ -88,7 +88,7 @@ and/or select the content of MediaWiki Categories with:
 
     git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com
 
-By default, only the main namespace is inspected. But you can also specify other namespaces with the [following patchset](https://github.com/Git-Mediawiki/Git-Mediawiki/issues/10):
+By default, only the main namespace is inspected. But you can also specify other namespaces with the [following patchset](https://github.com/Git-MediaWiki/Git-MediaWiki/issues/10):
 
     git clone -c remote.origin.namespaces='(Main) Talk' mediawiki::http://yourwikiadress.com
 
