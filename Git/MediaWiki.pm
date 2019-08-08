@@ -100,7 +100,7 @@ sub debug {
     return 1;
 }
 
-# Mediawiki filenames can contain forward slashes. This variable
+# MediaWiki filenames can contain forward slashes. This variable
 # decides by which pattern they should be replaced
 sub SLASH_REPLACEMENT {
     my $self = shift;
@@ -540,7 +540,7 @@ sub new {
     my $remote_url  = shift;
 
     $self = MediaWiki::API->new( { diagnostics => $ENV{GIT_MW_DIAGNOSTICS} } );;
-    bless $self, 'Git::Mediawiki';
+    bless $self, 'Git::MediaWiki';
     $self->from_git(*STDIN);
     $self->to_user(*STDERR);
     $self->to_git(*STDOUT);
@@ -912,7 +912,7 @@ sub clean {
     my $string       = shift;
     my $page_created = shift;
 
-    # Mediawiki does not allow blank space at the end of a page and ends
+    # MediaWiki does not allow blank space at the end of a page and ends
     # with a single \n.  This function right trims a string and adds a
     # \n at the end to follow this rule
     $string =~ s/\s+$//smx;
@@ -1257,7 +1257,7 @@ sub get_tracked_categories {
     foreach my $category ( $self->tracked_categories ) {
         if ( index( $category, q{:} ) < 0 ) {
 
-            # Mediawiki requires the Category
+            # MediaWiki requires the Category
             # prefix, but let's not force the user
             # to specify it.
             $category = "Category:${category}";
@@ -1552,7 +1552,7 @@ sub get_mediafile_for_page_revision {
     if ( defined( $file->{imageinfo} ) ) {
         my $fileinfo = pop @{ $file->{imageinfo} };
 
-        # Mediawiki::API's download function doesn't support https URLs
+        # MediaWiki::API's download function doesn't support https URLs
         # and can't download old versions of files.
         $self->to_user->print( "\tDownloading file $filename, "
               . "version $fileinfo->{timestamp}\n" );
@@ -2025,7 +2025,7 @@ repository.
 EOF
     }
 
-    my $mw = Git::Mediawiki->new(@arg);
+    my $mw = Git::MediaWiki->new(@arg);
 
     # Commands parser
     while ( my $line = $mw->from_git->getline ) {
