@@ -26,6 +26,7 @@ package Git::MediaWiki;    # -*-tab-width: 4; fill-column: 76 -*-
 use utf8;
 use strict;
 use warnings;
+use feature qw( current_sub );
 
 use Carp;
 use Cwd;
@@ -90,6 +91,12 @@ Readonly my $HTTP_CODE_PAGE_NOT_FOUND => 404;
 # Debug Levels
 Readonly my $DEBUG => 777;
 Readonly my $NOISY => 776;
+
+# Offset to caller
+Readonly my $CALLING_PKG  => 0;
+Readonly my $CALLING_FILE => 1;
+Readonly my $CALLING_LINE => 2;
+Readonly my $CALLING_SUBR => 3;
 
 sub debug {
     my ( $self, $msg, $level ) = @_;
@@ -157,65 +164,53 @@ sub to_git {
     return $self->_fh( $fh, 'to_git', 'w' );
 }
 
-sub repo {
-    my $self = shift;
-    return $self->{repo};
+sub _get_set {
+	my ( $self, $val ) = @_;
+	my $pkg = (caller 1)[$CALLING_PKG];
+	my $pkg_offset = length $pkg;
+	my $subr = (caller 1)[$CALLING_SUBR];
+	my $key = substr $subr, $pkg_offset + 2;
+	my $ret = $self->{$key};
+
+	if ( $val ) {
+		$ret = $self->{$key};
+		$self->{$key} = $val;
+	}
+
+    return $ret;
 }
 
-sub remote_url {
-    my $self = shift;
-    return $self->{remote_url};
-}
+sub repo { _get_set @_ }
 
-sub wiki_name {
-    my $self = shift;
-    return $self->{wiki_name};
-}
+sub remote_url { _get_set @_ }
 
-sub remotename {
-    my $self = shift;
-    return $self->{remote_name};
-}
+sub wiki_name { _get_set @_ }
 
-sub tracked_pages {
-    my $self = shift;
-    return $self->{tracked_page};
-}
+sub wiki_login { _get_set @_ }
 
-sub tracked_categories {
-    my $self = shift;
-    return $self->{tracked_categories};
-}
+sub wiki_password { _get_set @_ }
 
-sub tracked_namespaces {
-    my $self = shift;
-    return $self->{tracked_namespaces};
-}
+sub wiki_domain { _get_set @_ }
 
-sub import_media {
-    my $self = shift;
-    return $self->{importmedia};
-}
+sub remote_name { _get_set @_ }
 
-sub export_media {
-    my $self = shift;
-    return $self->{exportmedia};
-}
+sub tracked_pages { _get_set @_ }
 
-sub pages {
-    my $self = shift;
-    return $self->{pages};
-}
+sub tracked_categories { _get_set @_ }
 
-sub dumb_push {
-    my $self = shift;
-    return $self->{dumb_push};
-}
+sub tracked_namespaces { _get_set @_ }
 
-sub fetch_strategy {
-    my $self = shift;
-    return $self->{fetch_strategy};
-}
+sub import_media { _get_set @_ }
+
+sub export_media { _get_set @_ }
+
+sub pages { _get_set @_ }
+
+sub dumb_push { _get_set @_ }
+
+sub fetch_strategy { _get_set @_ }
+
+sub last_remote_revision { _get_set @_ }
 
 sub basetimestamp {
     my ( $self, $index, $val ) = @_;
