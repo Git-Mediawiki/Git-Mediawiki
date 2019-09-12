@@ -13,6 +13,7 @@
 #   make install
 mkfilePath := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfileDir := $(patsubst %/,%,$(dir $(mkfilePath)))
+include ${mkfileDir}/help.mk
 
 CMD ?= test
 PREFIX ?= /usr
