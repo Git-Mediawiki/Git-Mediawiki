@@ -236,7 +236,9 @@ sub send_to_git {
 
 sub namespace_id {
     my ( $self, $index, $val ) = @_;
-
+    if (!defined $index) {
+        return -1;
+    }
     my $ret = $self->{namespace_id}->{$index};
     if ( defined $val ) {
         $self->{namespace_id}->{$index} = $val;
@@ -258,6 +260,7 @@ sub cached_namespace {
 # Ex.: "File", "Project".
 sub get_namespace_id {
     my ( $self, $name ) = @_;
+
     if ( !defined $self->namespace_id($name) ) {
 
         # Look at configuration file, if the record for that namespace is
@@ -912,6 +915,7 @@ sub get_last_global_remote_rev {
         rcdir   => 'older',
     };
     my $result = $self->api($query);
+
     return $result->{query}->{recentchanges}[0]->{revid};
 }
 
@@ -1306,15 +1310,13 @@ sub get_tracked_categories {
 
 sub get_tracked_namespaces {
     my ( $self, $pages ) = @_;
-    foreach my $local_namespace ( $self->tracked_namespaces ) {
+    foreach my $local ( $self->tracked_namespaces ) {
         my $namespace_id;
-        if ( $local_namespace eq '(Main)'
-            or scalar $local_namespace == 0 )
-        {
+        if ( $local eq '(Main)' or $local eq '' ) {
             $namespace_id = 0;
-        }
-        else {
-            $namespace_id = $self->get_namespace_id($local_namespace);
+            $local = '(Main)';
+        } else {
+            $namespace_id = $self->get_namespace_id($local);
         }
 
         # virtual namespaces don't support allpages
@@ -1328,9 +1330,9 @@ sub get_tracked_namespaces {
             }
           )
           || $self->report_error(
-            "Could not list all pages in namespace '$local_namespace", 1 );
+            "Could not list all pages in namespace '$local", 1 );
         $self->to_user->print(
-                "$#{$mw_pages} found in namespace $local_namespace "
+                "$#{$mw_pages} found in namespace $local "
               . "($namespace_id)\n" );
         foreach my $page ( @{$mw_pages} ) {
             $pages->{ $page->{title} } = $page;
