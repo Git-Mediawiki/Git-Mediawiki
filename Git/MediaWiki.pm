@@ -935,7 +935,7 @@ sub push_file {
     my $diff_info = shift;
 
     # Filename, including the extension
-    my $complete_file_name = shift;
+    my $complete_file_name = $self->clean_filename( shift );
 
     # Commit message
     my $summary = shift;
@@ -945,18 +945,15 @@ sub push_file {
     my $oldrevid = shift;
     my $newrevid;
 
-    # $diff_info contains a string in this format:
-    # 100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>
-    my @diff_info_split = split /[ \t]/smx, $diff_info;
     if ( $summary eq $EMPTY_MESSAGE ) {
         $summary = $EMPTY;
     }
 
-    my $new_sha1     = $diff_info_split[3];
-    my $old_sha1     = $diff_info_split[2];
+    # $diff_info contains a string in this format:
+    # 100644 100644 <sha1_of_blob_before_commit> <sha1_of_blob_now> <status>
+    my ( undef, undef, $old_sha1, $new_sha1 ) = split /[ \t]/smx, $diff_info;
     my $page_created = ( $old_sha1 eq $NULL_SHA1 );
     my $page_deleted = ( $new_sha1 eq $NULL_SHA1 );
-    $complete_file_name = $self->clean_filename($complete_file_name);
 
     my ( $title, $extension ) = $complete_file_name =~ /^(.*?).?([^.]*)$/smx;
     if ( !defined $extension ) {
