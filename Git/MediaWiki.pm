@@ -746,6 +746,10 @@ sub get_last_remote_revision {
     my $self        = shift;
     my $max_rev_num = 0;
 
+    if ( $self->last_remote_revision ) {
+        return $self->last_remote_revision;
+    }
+
     $self->to_user->print("Getting last revision id on tracked pages...\n");
 
   PAGE:
@@ -1448,13 +1452,14 @@ sub fatal_error {
 
 ## Functions for listing pages on the remote wiki
 sub get_tracked_pages {
-    my ( $self, $pages ) = @_;
+    my ( $self ) = @_;
 
-    return $self->get_page_list($pages);
+    my $page_list = $self->tracked_pages;
+    return $self->get_page_list( $page_list );
 }
 
 sub get_page_list {
-    my ( $self, $page_list, $pages );
+    my ( $self, $page_list, $pages ) = @_;
 
     my @some_pages = @{$page_list};
     while (@some_pages) {
