@@ -224,10 +224,9 @@ sub basetimestamp {
 }
 
 sub send_to_git {
-    my ($self) = shift @_;
-    my @arg = @_;
+    my ($self) = shift;
 
-    $self->to_git->print(@arg)
+    $self->to_git->print( @_ )
       or croak(q{Couldn't print!});
     return;
 }
@@ -775,7 +774,7 @@ sub get_last_remote_revision {
         );
     }
 
-    $self->to_user->print("Last remote revision found is $max_rev_num.\n");
+    $self->to_user->print( "Last remote revision found is $max_rev_num.\n" );
     return $max_rev_num;
 }
 
@@ -997,7 +996,7 @@ sub push_file {
             }
         );
         if ( !$result ) {
-            if ( $self->{error}->{code} == 3 ) {
+            if ( $self->{error}->{code} == MediaWiki::API::ERR_API ) {
 
                 # edit conflicts, considered as non-fast-forward
                 $self->report_error('Edit conflict');
@@ -1340,7 +1339,7 @@ sub get_all_pages {
     my ($self) = @_;
 
     # No user-provided list, get the list of pages from the API.
-    $self->debug("Getting all pages...");
+    $self->debug( 'Getting all pages...' );
     my $mw_pages = $self->list(
         {
             action  => 'query',
@@ -1779,7 +1778,7 @@ sub fetch_revisions {
 
     my @revisions = ();
     my $n         = 1;
-    my $total     = scalar( keys %{$pages} );
+    my $total     = scalar keys %{$pages};
     foreach my $title ( keys %{$pages} ) {
         my $id = $pages->{$title}->{pageid};
         $self->to_user->print("page ${n}/$total: $title\n");
@@ -2042,7 +2041,7 @@ EOF
 
     # Commands parser
     while ( my $line = $mw->from_git->getline ) {
-        chomp($line);
+        chomp $line;
 
         if ( !$mw->parse_command($line) ) {
             last;
