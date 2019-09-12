@@ -376,7 +376,7 @@ sub smudge_filename {
 
 sub get_bool_conf {
     my ( $self, $bool ) = @_;
-    return $self->repo->config_bool( 'remote.' . $self->remotename . ".$bool" );
+    return $self->repo->config_bool( 'remote.' . $self->remote_name . ".$bool" );
 }
 
 sub env_or_flag {
@@ -416,9 +416,10 @@ sub env_or_flag {
 
 sub parse_config_list {
     my ( $self, $key ) = @_;
-    my @list;
-    chomp( @list = split /[ \n]/smx,
-        $self->repo->config( 'remote.' . $self->remotename . ".$key" ) || q{} );
+    my @list = q{};
+    for( $self->repo->config( 'remote.' . $self->remote_name . ".$key" ) ) {
+        chomp ( @list = split m{\s} );
+    }
     return @list;
 }
 
@@ -427,7 +428,7 @@ sub add_config_list {
     $self->repo->command(
         [
             'config',                                 '--add',
-            'remote.' . $self->remotename . ".$name", qq{$key:$val}
+            'remote.' . $self->remote_name . ".$name", qq{$key:$val}
         ]
     );
     return;
@@ -437,7 +438,7 @@ sub get_fetch_strategy {
     my $self = shift;
 
     $self->{fetch_strategy} =
-      $self->repo->config( 'remote.' . $self->remotename . '.fetchStrategy' );
+      $self->repo->config( 'remote.' . $self->remote_name . '.fetchStrategy' );
     if ( !$self->{fetch_strategy} ) {
         $self->{fetch_strategy} =
           $self->repo->config('mediawiki.fetchStrategy');
@@ -531,52 +532,59 @@ sub new {
     if ( ref $self ) {
         return $self;
     }
-    my $remote_name = shift;
-    my $remote_url  = shift;
-
-    $self = MediaWiki::API->new( { diagnostics => $ENV{GIT_MW_DIAGNOSTICS} } );;
+    $self = MediaWiki::API->new( {
+		diagnostics => $ENV{GIT_MW_DIAGNOSTICS}
+	} );
     bless $self, 'Git::MediaWiki';
+
     $self->from_git(*STDIN);
     $self->to_user(*STDERR);
     $self->to_git(*STDOUT);
 
-    $self->{repo}        = Git->repository( Directory => getcwd() );
-    $self->{remote_name} = $remote_name;
-    $self->{remote_url}  = $remote_url;
-    $self->{dumb_push} =
-      $self->repo->config_bool( 'remote.' . $self->remotename . '.dumbPush' );
-    if ( !defined $self->{dumb_push} ) {
-        $self->{dumb_push} = $self->repo->config_bool('mediawiki.dumbPush');
-    }
+	my $repo = Git->repository( Directory => getcwd() );
+	$self->repo( $repo );
+    $self->remote_name( shift );
+    $self->remote_url( shift );
+
+    $self->dumb_push(
+		$self->repo->config_bool( 'remote.' . $self->remote_name . '.dumbPush' )
+		|| $self->repo->config_bool( 'mediawiki.dumbPush' )
+	  );
 
     my $wiki_name = $self->remote_url;
-    $wiki_name =~ s{[^/]*://}{}smx;
 
     # If URL is like http://user:password@example.com/, we clearly don't
     # want the password in $wiki_name. While we're there, also remove user
     # and '@' sign, to avoid author like MWUser@HTTPUser@host.com
-    $wiki_name =~ s/^.*@//smx;
-    $self->{wiki_name} = $wiki_name;
+	for ( $wiki_name ) {
+		s{[^/]*://}{}smx;
+		s/^.*@//smx;
+	}
+    $self->wiki_name( $wiki_name );
 
     $self->{ua}->ssl_opts( $self->get_ssl_opts );
     $self->{ua}->agent( "git-mediawiki/$VERSION " . $self->{ua}->agent() );
     $self->{ua}->conn_cache( { total_capacity => undef } );
 
-    $self->{config}->{api_url} = "${remote_url}/api.php";
-    $self->{wiki_login} = $self->repo->config("remote.${remote_name}.mwLogin");
-    $self->{wiki_password} =
-      $self->repo->config("remote.${remote_name}.mwPassword");
-    $self->{wiki_domain} =
-      $self->repo->config("remote.${remote_name}.mwDomain");
-    if ( $self->{wiki_login} ) {
+    $self->{config}->{api_url} = $self->remote_url . '/api.php';
+    $self->wiki_login(
+		$self->repo->config( 'remote.' . $self->remote_name . '.mwLogin' )
+	  );
+    $self->wiki_password(
+		$self->repo->config( 'remote.' . $self->remote_name . '.mwPassword' )
+	  );
+    $self->wiki_domain(
+		$self->repo->config( 'remote.' . $self->remote_name . '.mwDomain' )
+	  );
+    if ( $self->wiki_login ) {
         $self->check_credentials;
     }
 
     # Accept both space-separated and multiple keys in config file.
     # Spaces should be written as _ anyway because we'll use chomp.
-    $self->{tracked_pages}      = $self->parse_config_list('pages');
-    $self->{tracked_categories} = $self->parse_config_list('categories');
-    $self->{tracked_namespaces} = $self->parse_config_list('namespaces');
+    $self->{tracked_pages}      = [ $self->parse_config_list('pages') ];
+    $self->{tracked_categories} = [ $self->parse_config_list('categories') ];
+    $self->{tracked_namespaces} = [ $self->parse_config_list('namespaces') ];
 
     # Import media files on pull
     $self->{importmedia} = $self->get_bool_conf('mediaimport');
@@ -1142,7 +1150,7 @@ sub push_revision {
     # Get sha1 of commit pointed by remotes/$remotename/master
     chomp(
         my $remoteorigin_sha1 = $self->repo->command(
-            [ 'rev-parse', 'refs/remotes/' . $self->remotename . '/master' ],
+            [ 'rev-parse', 'refs/remotes/' . $self->remote_name . '/master' ],
             STDERR => 0
         )
     );
@@ -1234,17 +1242,36 @@ sub push_every_blob {
             die "Unknown error from mw_push_file()\n";
         }
         if ( !$self->dumb_push ) {
-            $self->repo->command(
-                [
-                    'notes', '--ref=' . $self->remotename . '/mediawiki',
-                    'add',   '-f',
-                    '-m',    qq(mediawiki_revision: $mw_revision),
-                    $sha1
-                ]
-            );
+			$self->add_note( $sha1, qq(mediawiki_revision: $mw_revision) );
         }
     }
     return;
+}
+
+sub get_note {
+	my ( $self ) = @_;
+	my $note;
+
+    try {
+        $note = $self->repo->command(
+            [
+                'notes', '--ref=' . $self->remote_name . '/mediawiki',
+                'show',  'refs/mediawiki/' . $self->remote_name . '/master'
+            ],
+            STDERR => 0
+        );
+    };
+
+	return $note;
+}
+
+sub add_note {
+	my ( $self, $sha1, $note ) = @_;
+
+	return $self->repo->command( [
+		'notes', '--ref=' . $self->remote_name . '/mediawiki',
+		'add',   '-f', '-m', $note, $sha1
+	  ] );
 }
 
 sub get_tracked_categories {
@@ -1608,16 +1635,7 @@ sub get_last_local_revision {
     my $self = shift;
 
     # Get note regarding last mediawiki revision
-    my $note;
-    try {
-        $note = $self->repo->command(
-            [
-                'notes', '--ref=' . $self->remotename . '/mediawiki',
-                'show',  'refs/mediawiki/' . $self->remotename . '/master'
-            ],
-            STDERR => 0
-        );
-    };
+    my $note = $self->get_note();
 
     my $lastrevision_number;
     if ( !defined $note ) {
@@ -1663,7 +1681,7 @@ sub cmd_capabilities {
     # refs/mediawiki/$remotename/ by the helper and fetched into
     # refs/remotes/$remotename later by fetch.
     $self->send_to_git(
-        'refspec refs/heads/*:refs/mediawiki/' . $self->remotename . "/*\n" );
+        'refspec refs/heads/*:refs/mediawiki/' . $self->remote_name . "/*\n" );
     $self->send_to_git("import\n");
     $self->send_to_git("list\n");
     $self->send_to_git("push\n");
@@ -1805,7 +1823,7 @@ sub import_file_revision {
     my $date    = $commit{date};
 
     $self->send_to_git(
-        'commit refs/mediawiki/' . $self->remotename . "/master\n" );
+        'commit refs/mediawiki/' . $self->remote_name . "/master\n" );
     $self->send_to_git("mark :${n}\n");
     $self->send_to_git(
         $self->format_committer_name( $author, $self->wiki_name, $date ) );
@@ -1814,7 +1832,7 @@ sub import_file_revision {
     # If it's not a clone, we need to know where to start from
     if ( !$full_import && $n == 1 ) {
         $self->send_to_git(
-            'from refs/mediawiki/' . $self->remotename . "/master^0\n" );
+            'from refs/mediawiki/' . $self->remote_name . "/master^0\n" );
     }
     if ( $content ne $DELETED_CONTENT ) {
         $self->send_to_git( 'M 644 inline '
@@ -1838,17 +1856,17 @@ sub import_file_revision {
     # mediawiki revision number in the git note
     if ( $full_import && $n == 1 ) {
         $self->send_to_git(
-            'reset refs/notes/' . $self->remotename . "/mediawiki\n" );
+            'reset refs/notes/' . $self->remote_name . "/mediawiki\n" );
     }
     $self->send_to_git(
-        'commit refs/notes/' . $self->remotename . "/mediawiki\n" );
+        'commit refs/notes/' . $self->remote_name . "/mediawiki\n" );
     $self->send_to_git(
         $self->format_committer_name( $author, $self->wiki_name, $date ) );
 
     $self->literal_data('Note added by git-mediawiki during import');
     if ( !$full_import && $n == 1 ) {
         $self->send_to_git(
-            'from refs/notes/' . $self->remotename . "/mediawiki^0\n" );
+            'from refs/notes/' . $self->remote_name . "/mediawiki^0\n" );
     }
     $self->send_to_git("N inline :${n}\n");
     $self->literal_data("mediawiki_revision: $commit{mw_revision}");
@@ -1932,12 +1950,12 @@ sub import_ref {
         $n = $self->import_ref_by_pages($fetch_from);
     }
     else {
-        my ( $strategy, $remotename ) =
-          ( $self->fetch_strategy, $self->remotename );
+        my ( $strategy, $remote_name ) =
+          ( $self->fetch_strategy, $self->remote_name );
         $self->to_user->print(
             'fatal: invalid fetch strategy ' . qq{$strategy".\n} );
         $self->to_user->print( 'Check your configuration variables '
-              . "remote.${remotename}.fetchStrategy and "
+              . "remote.${remote_name}.fetchStrategy and "
               . "mediawiki.fetchStrategy\n" );
         exit 1;
     }
@@ -1988,7 +2006,7 @@ EOF
 # Dumb push: don't update notes and mediawiki ref to reflect the last push.
 #
 # Configurable with mediawiki.dumbPush, or per-remote with
-# remote.<remotename>.dumbPush.
+# remote.<remote_name>.dumbPush.
 #
 # This means the user will have to re-import the just-pushed
 # revisions. On the other hand, this means that the Git revisions
