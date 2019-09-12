@@ -177,6 +177,9 @@ sub _get_set {
 		$self->{$key} = $val;
 	}
 
+    if ( ref $ret eq 'ARRAY' && wantarray ) {
+        return @{$ret};
+    }
     return $ret;
 }
 
