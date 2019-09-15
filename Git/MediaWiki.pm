@@ -421,7 +421,7 @@ sub parse_config_list {
     my ( $self, $key ) = @_;
     my @list = q{};
     for( $self->repo->config( 'remote.' . $self->remote_name . ".$key" ) ) {
-        chomp ( @list = split m{\s} );
+        chomp ( @list = split m{\s}mxs );
     }
     return @list;
 }
@@ -787,13 +787,17 @@ sub get_last_remote_revision {
 }
 
 sub import_ref_by_revs {
-    my $self       = shift;
-    my $fetch_from = shift;
-    my $pages      = $self->get_pages();
+    my $self         = shift;
+    my $fetch_from   = shift;
+    my $pages        = $self->get_pages();
+    my $last_remote  = $self->get_last_remote_rev( $pages );
+	my $revision_ids = $self->get_page_revs( $pages );
 
-    my $last_remote  = $self->get_last_global_remote_rev();
-    my $revision_ids = [ $fetch_from .. $last_remote ];
-    return $self->import_revids( $fetch_from, $revision_ids, $pages );
+	if ( !$last_remote ) {
+		# "no pages found" already printed.
+		die "Do you need to run rebuildrecentchanges.php on the wiki?\n";
+	}
+    return $self->import_revids( $fetch_from, $self->get_revisions( $pages ), $pages );
 }
 
 # Import revisions given in second argument (array of integers).
@@ -1330,7 +1334,7 @@ sub get_tracked_namespaces {
           || $self->report_error(
             "Could not list all pages in namespace '$local", 1 );
         $self->to_user->print(
-                "$#{$mw_pages} found in namespace $local "
+                "$#{$mw_pages} page(s) found in namespace $local "
               . "($namespace_id)\n" );
         foreach my $page ( @{$mw_pages} ) {
             $pages->{ $page->{title} } = $page;
@@ -1366,12 +1370,12 @@ sub get_all_pages {
 
 # queries the wiki for a set of pages. Meant to be used within a loop
 # querying the wiki for slices of page list.
-sub get_first_pages {
+sub get_page_chunk {
     my $self       = shift;
     my $some_pages = shift;
     my @some_pages = @{$some_pages};
 
-    my $pages = shift;
+    my $pages = {};
 
     # pattern 'page1|page2|...' required by the API
     my $titles = join q{|}, @some_pages;
@@ -1394,7 +1398,7 @@ sub get_first_pages {
             $pages->{ $page->{title} } = $page;
         }
     }
-    return;
+    return $pages;
 }
 
 sub parse_command {
@@ -1453,25 +1457,27 @@ sub fatal_error {
 ## Functions for listing pages on the remote wiki
 sub get_tracked_pages {
     my ( $self ) = @_;
-
     my $page_list = $self->tracked_pages;
+
     return $self->get_page_list( $page_list );
 }
 
 sub get_page_list {
-    my ( $self, $page_list, $pages ) = @_;
-
+    my ( $self, $page_list ) = @_;
     my @some_pages = @{$page_list};
+	my $pages = {};
+
     while (@some_pages) {
         my $last_page = $SLICE_SIZE;
         if ( $#some_pages < $last_page ) {
             $last_page = $#some_pages;
         }
         my @slice = @some_pages[ 0 .. $last_page ];
-        $self->get_first_pages( \@slice, $pages );
+        $pages = { %$pages, %{$self->get_page_chunk( \@slice )} };
         @some_pages = @some_pages[ ( $SLICE_SIZE + 1 ) .. $#some_pages ];
     }
-    return @some_pages;
+	$self->{pages} = $pages;
+    return $self->{pages};
 }
 
 sub get_all_mediafiles {
