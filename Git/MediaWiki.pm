@@ -87,8 +87,10 @@ Readonly my $HTTP_CODE_OK             => 200;
 Readonly my $HTTP_CODE_PAGE_NOT_FOUND => 404;
 
 # Debug Levels
-Readonly my $DEBUG => 777;
+Readonly my $LOW_NOISE => 0;
+Readonly my $NOTICE => 10;
 Readonly my $NOISY => 776;
+Readonly my $DEBUG => 777;
 
 # Offset to caller
 Readonly my $CALLING_PKG  => 0;
@@ -99,7 +101,7 @@ Readonly my $CALLING_SUBR => 3;
 sub debug {
     my ( $self, $msg, $level ) = @_;
 
-    if ( defined $ENV{DEBUG_LEVEL} && $level > $ENV{DEBUG_LEVEL} ) {
+    if ( defined $ENV{DEBUG_LEVEL} && $level < $ENV{DEBUG_LEVEL} ) {
         $self->to_user->print("$msg\n");
     }
     return 1;
@@ -151,9 +153,9 @@ sub from_git {
 }
 
 sub to_user {
-    my ( $self, $fh ) = @_;
+    my ( $self, $fh, $level ) = @_;
 
-    return $self->_fh( $fh, 'to_user', 'w' );
+	return $self->_fh( $fh, 'to_user', 'w' );
 }
 
 sub to_git {
@@ -168,50 +170,36 @@ sub _get_set {
 	my $pkg_offset = length $pkg;
 	my $subr = (caller 1)[$CALLING_SUBR];
 	my $key = substr $subr, $pkg_offset + 2;
-	my $ret = $self->{$key};
+	my $ret;
+
+	if ( !defined $self->{$key} && !$val ) {
+		$self->debug( "returning 0 for $subr", $DEBUG );
+		return 0;
+	}
+	$ret = $self->{$key};
 
 	if ( $val ) {
+		$self->debug( "setting for $key", $DEBUG );
 		$ret = $self->{$key};
 		$self->{$key} = $val;
 	}
-
     if ( ref $ret eq 'ARRAY' && wantarray ) {
+		$self->debug( "returning deref array for $subr", $DEBUG );
         return @{$ret};
     }
     return $ret;
 }
 
-sub repo { _get_set @_ }
+my @methods = qw(
+	repo remote_url wiki_name wiki_login wiki_password wiki_domain
+	remote_name tracked_pages tracked_categories tracked_namespaces
+	import_media export_media pages dumb_push fetch_strategy
+	last_remote_revision wanted_revs
+);
 
-sub remote_url { _get_set @_ }
-
-sub wiki_name { _get_set @_ }
-
-sub wiki_login { _get_set @_ }
-
-sub wiki_password { _get_set @_ }
-
-sub wiki_domain { _get_set @_ }
-
-sub remote_name { _get_set @_ }
-
-sub tracked_pages { _get_set @_ }
-
-sub tracked_categories { _get_set @_ }
-
-sub tracked_namespaces { _get_set @_ }
-
-sub import_media { _get_set @_ }
-
-sub export_media { _get_set @_ }
-
-sub pages { _get_set @_ }
-
-sub dumb_push { _get_set @_ }
-
-sub fetch_strategy { _get_set @_ }
-
-sub last_remote_revision { _get_set @_ }
+foreach my $method (@methods) {
+	eval "sub $method { return _get_set \@_ }";
+}
 
 sub basetimestamp {
     my ( $self, $index, $val ) = @_;
@@ -585,9 +573,13 @@ sub new {
 
     # Accept both space-separated and multiple keys in config file.
     # Spaces should be written as _ anyway because we'll use chomp.
-    $self->{tracked_pages}      = [ $self->parse_config_list('pages') ];
-    $self->{tracked_categories} = [ $self->parse_config_list('categories') ];
-    $self->{tracked_namespaces} = [ $self->parse_config_list('namespaces') ];
+	foreach ( qw( pages categories namespaces ) ) {
+		my @list = $self->parse_config_list($_);
+		my $count = scalar @list;
+		if ( $count > 1 || $list[0] ne q{} ) {
+			$self->{"tracked_$_"} = \@list;
+		}
+	}
 
     # Import media files on pull
     $self->{importmedia} = $self->get_bool_conf('mediaimport');
@@ -704,29 +696,33 @@ sub get_pages {
         return $self->pages;
     }
 
-    $self->to_user->print("Listing pages on remote wiki...\n");
+    $self->debug("Listing pages on remote wiki...", $LOW_NOISE);
 
     my $user_defined;
     if ( $self->tracked_pages ) {
         $user_defined = 1;
+        $self->debug("... getting tracked page ids...", $LOW_NOISE);
 
         # The user provided a list of pages titles, but we
         # still need to query the API to get the page IDs.
         $self->get_tracked_pages;
-    }
+	}
     if ( $self->tracked_categories ) {
+        $self->debug( "... getting tracked categories...", $LOW_NOISE );
         $user_defined = 1;
         $self->get_tracked_categories;
     }
     if ( $self->tracked_namespaces ) {
+		$self->debug( "... getting tracked namespaces...", $LOW_NOISE );
         $user_defined = 1;
         $self->get_tracked_namespaces;
     }
     if ( !$user_defined ) {
+        $self->debug( "... getting all pages...", $LOW_NOISE );
         $self->get_all_pages;
     }
     if ( $self->import_media ) {
-        $self->to_user->print("Getting media files for selected pages...\n");
+        $self->debug( "Getting media files for selected pages...", $LOW_NOISE );
         if ($user_defined) {
             $self->get_linked_mediafiles;
         }
@@ -739,7 +735,7 @@ sub get_pages {
             scalar( keys %{ $self->pages } ) . " pages found.\n" );
     }
     else {
-        $self->to_user->print("no pages found.\n");
+        $self->debug( "no pages found.", $LOW_NOISE );
     }
     return $self->pages;
 }
@@ -754,7 +750,7 @@ sub get_last_remote_revision {
         return $self->last_remote_revision;
     }
 
-    $self->to_user->print("Getting last revision id on tracked pages...\n");
+    $self->debug( "Getting last revision id on tracked pages...", $LOW_NOISE );
 
   PAGE:
     foreach my $page ( $self->get_pages ) {
@@ -782,7 +778,7 @@ sub get_last_remote_revision {
         );
     }
 
-    $self->to_user->print( "Last remote revision found is $max_rev_num.\n" );
+    $self->debug(  "Last remote revision found is $max_rev_num.\n" , $LOW_NOISE );
     return $max_rev_num;
 }
 
@@ -790,7 +786,7 @@ sub import_ref_by_revs {
     my $self         = shift;
     my $fetch_from   = shift;
     my $pages        = $self->get_pages();
-    my $last_remote  = $self->get_last_remote_rev( $pages );
+    my $last_remote  = $self->get_last_global_remote_rev( $pages );
 	my $revision_ids = $self->get_page_revs( $pages );
 
 	if ( !$last_remote ) {
@@ -914,7 +910,6 @@ sub get_last_global_remote_rev {
         list    => 'recentchanges',
         prop    => 'revisions',
         rclimit => '1',
-        rcdir   => 'older',
     };
     my $result = $self->api($query);
 
@@ -974,8 +969,8 @@ sub push_file {
             && $ns == $self->get_namespace_id('File')
             && !$self->export_media )
         {
-            $self->to_user->print(
-                "Ignoring media file related page: ${complete_file_name}\n");
+            $self->debug( 
+                "Ignoring media file related page: ${complete_file_name}", $LOW_NOISE );
             return ( $oldrevid, 'ok' );
         }
         my $file_content;
@@ -1018,7 +1013,7 @@ sub push_file {
             }
         }
         $newrevid = $result->{edit}->{newrevid};
-        $self->to_user->print("Pushed file: ${new_sha1} - ${title}\n");
+        $self->debug( "Pushed file: ${new_sha1} - ${title}", $LOW_NOISE );
     }
     elsif ( $self->export_media ) {
         $newrevid =
@@ -1026,7 +1021,7 @@ sub push_file {
             $extension, $page_deleted, $summary );
     }
     else {
-        $self->to_user->print("Ignoring media file ${title}\n");
+        $self->debug( "Ignoring media file ${title}", $LOW_NOISE );
     }
     $newrevid = ( $newrevid or $oldrevid );
     return ( $newrevid, 'ok' );
@@ -1044,19 +1039,19 @@ sub cmd_push {
           or die
           "Invalid refspec for push. Expected <src>:<dst> or +<src>:<dst>\n";
         if ($force) {
-            $self->to_user->print(
-                "Warning: forced push not allowed on a MediaWiki.\n");
+            $self->debug( 
+                "Warning: forced push not allowed on a MediaWiki.", $LOW_NOISE );
         }
         if ( $local eq $EMPTY ) {
-            $self->to_user->print(
-                "Cannot delete remote branch on a MediaWiki\n");
+            $self->debug( 
+                "Cannot delete remote branch on a MediaWiki", $LOW_NOISE );
             $self->send_to_git("error $remote cannot delete\n");
             next;
         }
         if ( $remote ne 'refs/heads/master' ) {
-            $self->to_user->print(
+            $self->debug( 
                     q{Only push to the branch 'master' is supported }
-                  . "on a MediaWiki\n" );
+                  . "on a MediaWiki\n" , $LOW_NOISE );
             $self->send_to_git("error ${remote} only master allowed\n");
             next;
         }
@@ -1089,7 +1084,7 @@ sub find_path_to_commit {
     my $parsed_sha1 = shift;
 
     # Find a path from last MediaWiki commit to pushed commit
-    $self->to_user->print("Computing path from local to remote ...\n");
+    $self->debug( "Computing path from local to remote ...", $LOW_NOISE );
     my @local_ancestry = split /\n/smx,
       $self->repo->command(
         [ 'rev-list', '--boundary', '--parents', $local, "^${parsed_sha1}" ],
@@ -1314,7 +1309,7 @@ sub get_tracked_namespaces {
     my ( $self, $pages ) = @_;
     foreach my $local ( $self->tracked_namespaces ) {
         my $namespace_id;
-        if ( $local eq '(Main)' or $local eq '' ) {
+        if ( $local eq '(Main)' or $local eq q{} ) {
             $namespace_id = 0;
             $local = '(Main)';
         } else {
@@ -1347,7 +1342,7 @@ sub get_all_pages {
     my ($self) = @_;
 
     # No user-provided list, get the list of pages from the API.
-    $self->debug( 'Getting all pages...' );
+    $self->debug( 'Getting all pages...', $NOTICE );
     my $mw_pages = $self->list(
         {
             action  => 'query',
@@ -1473,7 +1468,7 @@ sub get_page_list {
             $last_page = $#some_pages;
         }
         my @slice = @some_pages[ 0 .. $last_page ];
-        $pages = { %$pages, %{$self->get_page_chunk( \@slice )} };
+        $pages = { %{$pages}, %{$self->get_page_chunk( \@slice )} };
         @some_pages = @some_pages[ ( $SLICE_SIZE + 1 ) .. $#some_pages ];
     }
 	$self->{pages} = $pages;
@@ -1586,8 +1581,8 @@ sub get_mediafile_for_page_revision {
 
         # MediaWiki::API's download function doesn't support https URLs
         # and can't download old versions of files.
-        $self->to_user->print( "\tDownloading file $filename, "
-              . "version $fileinfo->{timestamp}\n" );
+        $self->debug(  "\tDownloading file $filename, "
+              . "version $fileinfo->{timestamp}\n" , $LOW_NOISE );
         my $content = $self->download_mediafile( $fileinfo->{url} );
         if ( defined $content ) {
             $mediafile{content}   = $content;
@@ -1649,7 +1644,7 @@ sub get_last_local_revision {
 
     my $lastrevision_number;
     if ( !defined $note ) {
-        $self->to_user->print("No previous mediawiki revision found.\n");
+        $self->debug( "No previous mediawiki revision found.", $LOW_NOISE );
         $lastrevision_number = 0;
     }
     else {
@@ -1658,9 +1653,8 @@ sub get_last_local_revision {
         # Notes are formatted : mediawiki_revision: #number
         $lastrevision_number = $note_info[1];
         chomp $lastrevision_number;
-        $self->to_user->print( 'Last local mediawiki revision found is '
-              . $lastrevision_number
-              . ".\n" );
+        $self->debug(  'Last local mediawiki revision found is '
+              . $lastrevision_number, $LOW_NOISE );
     }
     return $lastrevision_number;
 }
@@ -1774,13 +1768,13 @@ sub fetch_revisions_for_page {
         }
     }
     if ( $self->shallow_import && @page_revs ) {
-        $self->to_user->print("  returning 1 revision (shallow import).\n");
+        $self->debug( "  returning 1 revision (shallow import).", $LOW_NOISE );
         my @sorted = sort { $a->{revid} <=> $b->{revid} } @page_revs;
 
         @page_revs = reverse @sorted;
         return $page_revs[0];
     }
-    $self->to_user->print("  Found ${revnum} revision(s).\n");
+    $self->debug( "  Found ${revnum} revision(s).", $LOW_NOISE );
     return @page_revs;
 }
 
@@ -1792,7 +1786,7 @@ sub fetch_revisions {
     my $total     = scalar keys %{$pages};
     foreach my $title ( keys %{$pages} ) {
         my $id = $pages->{$title}->{pageid};
-        $self->to_user->print("page ${n}/$total: $title\n");
+        $self->debug( "page ${n}/$total: $title", $LOW_NOISE );
         $n++;
         my @page_revs =
           $self->fetch_revisions_for_page( $pages->{$title}, $id, $fetch_from );
@@ -1940,23 +1934,23 @@ sub import_ref {
         return;
     }
 
-    $self->to_user->print("Searching revisions...\n");
+    $self->debug( "Searching revisions...", $LOW_NOISE );
     my $last_local = $self->get_last_local_revision();
     my $fetch_from = $last_local + 1;
     if ( $fetch_from == 1 ) {
-        $self->to_user->print("... fetching from beginning.\n");
+        $self->debug( "... fetching from beginning.", $LOW_NOISE );
     }
     else {
-        $self->to_user->print("... fetching from here.\n");
+        $self->debug( "... fetching from here.", $LOW_NOISE );
     }
 
     my $n = 0;
     if ( $self->fetch_strategy eq 'by_rev' ) {
-        $self->to_user->print("Fetching & writing export data by revs...\n");
+        $self->debug( "Fetching & writing export data by revs...", $LOW_NOISE );
         $n = $self->import_ref_by_revs($fetch_from);
     }
     elsif ( $self->fetch_strategy eq 'by_page' ) {
-        $self->to_user->print("Fetching & writing export data by pages...\n");
+        $self->debug( "Fetching & writing export data by pages...", $LOW_NOISE );
         $n = $self->import_ref_by_pages($fetch_from);
     }
     else {
@@ -1971,8 +1965,8 @@ sub import_ref {
     }
 
     if ( $fetch_from == 1 && $n == 0 ) {
-        $self->to_user->print(
-            "You appear to have cloned an empty MediaWiki.\n");
+        $self->debug( 
+            "You appear to have cloned an empty MediaWiki.", $LOW_NOISE );
 
         # Something has to be done remote-helper side. If nothing is done,
         # an error is thrown saying that HEAD is referring to unknown
