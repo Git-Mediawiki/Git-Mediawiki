@@ -696,33 +696,33 @@ sub get_pages {
         return $self->pages;
     }
 
-    $self->debug("Listing pages on remote wiki...", $LOW_NOISE);
+    $self->debug('Listing pages on remote wiki...', $LOW_NOISE);
 
     my $user_defined;
     if ( $self->tracked_pages ) {
         $user_defined = 1;
-        $self->debug("... getting tracked page ids...", $LOW_NOISE);
+        $self->debug('... getting tracked page ids...', $LOW_NOISE);
 
         # The user provided a list of pages titles, but we
         # still need to query the API to get the page IDs.
         $self->get_tracked_pages;
 	}
     if ( $self->tracked_categories ) {
-        $self->debug( "... getting tracked categories...", $LOW_NOISE );
+        $self->debug( '... getting tracked categories...', $LOW_NOISE );
         $user_defined = 1;
         $self->get_tracked_categories;
     }
     if ( $self->tracked_namespaces ) {
-		$self->debug( "... getting tracked namespaces...", $LOW_NOISE );
+		$self->debug( '... getting tracked namespaces...', $LOW_NOISE );
         $user_defined = 1;
         $self->get_tracked_namespaces;
     }
     if ( !$user_defined ) {
-        $self->debug( "... getting all pages...", $LOW_NOISE );
+        $self->debug( '... getting all pages...', $LOW_NOISE );
         $self->get_all_pages;
     }
     if ( $self->import_media ) {
-        $self->debug( "Getting media files for selected pages...", $LOW_NOISE );
+        $self->debug( 'Getting media files for selected pages...', $LOW_NOISE );
         if ($user_defined) {
             $self->get_linked_mediafiles;
         }
@@ -735,7 +735,7 @@ sub get_pages {
             scalar( keys %{ $self->pages } ) . " pages found.\n" );
     }
     else {
-        $self->debug( "no pages found.", $LOW_NOISE );
+        $self->debug( 'no pages found.', $LOW_NOISE );
     }
     return $self->pages;
 }
@@ -750,7 +750,7 @@ sub get_last_remote_revision {
         return $self->last_remote_revision;
     }
 
-    $self->debug( "Getting last revision id on tracked pages...", $LOW_NOISE );
+    $self->debug( 'Getting last revision id on tracked pages...', $LOW_NOISE );
 
   PAGE:
     foreach my $page ( $self->get_pages ) {
@@ -778,8 +778,48 @@ sub get_last_remote_revision {
         );
     }
 
-    $self->debug(  "Last remote revision found is $max_rev_num.\n" , $LOW_NOISE );
+    $self->debug(  'Last remote revision found is $max_rev_num.' , $LOW_NOISE );
     return $max_rev_num;
+}
+
+sub page_get_revs_with_last_rev{
+	my ($self, $page, $last_rev) = @_;
+    my $result = $self->api( {
+        action  => 'query',
+        prop    => 'revisions',
+		titles  => $page,
+        rvlimit => 500
+    } );
+	my ($pageid) = keys %{$result->{query}->{pages}};
+
+	return [map {$_->{revid}} @{$result->{query}->{pages}->{$pageid}->{revisions}}]
+}
+
+sub pagelist_get_lastrevs {
+	my ($self, $pages) = @_;
+    my $result = $self->api( {
+        action  => 'query',
+        prop    => 'revisions',
+		# Might be faster to make the call with pageids rather than titles
+		titles  => join q{|}, keys %{$pages}
+    } );
+	return { map {
+	    $result->{query}->{pages}->{$_}->{title} =>
+		  $result->{query}->{pages}->{$_}->{revisions}->[0]->{revid}
+	  } keys %{$result->{query}->{pages}} };
+}
+
+sub pagelist_get_revs {
+	my ($self, $pages) = @_;
+	my $last_revs = $self->pagelist_get_lastrevs( $pages );
+	my $page_list = {};
+	my $rev_list = [];
+
+	foreach my $page ( keys %{$pages} ) {
+		$page_list->{$page} = $self->page_get_revs_with_last_rev( $page, $last_revs->{$page} );
+		push @{$rev_list}, @{$page_list->{$page}};
+	}
+	return [sort @{$rev_list}];
 }
 
 sub import_ref_by_revs {
@@ -787,13 +827,12 @@ sub import_ref_by_revs {
     my $fetch_from   = shift;
     my $pages        = $self->get_pages();
     my $last_remote  = $self->get_last_global_remote_rev( $pages );
-	my $revision_ids = $self->get_page_revs( $pages );
 
 	if ( !$last_remote ) {
 		# "no pages found" already printed.
 		die "Do you need to run rebuildrecentchanges.php on the wiki?\n";
 	}
-    return $self->import_revids( $fetch_from, $self->get_revisions( $pages ), $pages );
+    return $self->import_revids( $fetch_from, $self->pagelist_get_revs( $pages ), $pages );
 }
 
 # Import revisions given in second argument (array of integers).
@@ -969,7 +1008,7 @@ sub push_file {
             && $ns == $self->get_namespace_id('File')
             && !$self->export_media )
         {
-            $self->debug( 
+            $self->debug(
                 "Ignoring media file related page: ${complete_file_name}", $LOW_NOISE );
             return ( $oldrevid, 'ok' );
         }
@@ -1039,19 +1078,19 @@ sub cmd_push {
           or die
           "Invalid refspec for push. Expected <src>:<dst> or +<src>:<dst>\n";
         if ($force) {
-            $self->debug( 
-                "Warning: forced push not allowed on a MediaWiki.", $LOW_NOISE );
+            $self->debug(
+                'Warning: forced push not allowed on a MediaWiki.', $LOW_NOISE );
         }
         if ( $local eq $EMPTY ) {
-            $self->debug( 
-                "Cannot delete remote branch on a MediaWiki", $LOW_NOISE );
+            $self->debug(
+                'Cannot delete remote branch on a MediaWiki', $LOW_NOISE );
             $self->send_to_git("error $remote cannot delete\n");
             next;
         }
         if ( $remote ne 'refs/heads/master' ) {
-            $self->debug( 
+            $self->debug(
                     q{Only push to the branch 'master' is supported }
-                  . "on a MediaWiki\n" , $LOW_NOISE );
+                  . 'on a MediaWiki' , $LOW_NOISE );
             $self->send_to_git("error ${remote} only master allowed\n");
             next;
         }
@@ -1084,7 +1123,7 @@ sub find_path_to_commit {
     my $parsed_sha1 = shift;
 
     # Find a path from last MediaWiki commit to pushed commit
-    $self->debug( "Computing path from local to remote ...", $LOW_NOISE );
+    $self->debug( 'Computing path from local to remote ...', $LOW_NOISE );
     my @local_ancestry = split /\n/smx,
       $self->repo->command(
         [ 'rev-list', '--boundary', '--parents', $local, "^${parsed_sha1}" ],
@@ -1644,7 +1683,7 @@ sub get_last_local_revision {
 
     my $lastrevision_number;
     if ( !defined $note ) {
-        $self->debug( "No previous mediawiki revision found.", $LOW_NOISE );
+        $self->debug( 'No previous mediawiki revision found.', $LOW_NOISE );
         $lastrevision_number = 0;
     }
     else {
@@ -1768,7 +1807,7 @@ sub fetch_revisions_for_page {
         }
     }
     if ( $self->shallow_import && @page_revs ) {
-        $self->debug( "  returning 1 revision (shallow import).", $LOW_NOISE );
+        $self->debug( '  returning 1 revision (shallow import).', $LOW_NOISE );
         my @sorted = sort { $a->{revid} <=> $b->{revid} } @page_revs;
 
         @page_revs = reverse @sorted;
@@ -1934,23 +1973,23 @@ sub import_ref {
         return;
     }
 
-    $self->debug( "Searching revisions...", $LOW_NOISE );
+    $self->debug( 'Searching revisions...', $LOW_NOISE );
     my $last_local = $self->get_last_local_revision();
     my $fetch_from = $last_local + 1;
     if ( $fetch_from == 1 ) {
-        $self->debug( "... fetching from beginning.", $LOW_NOISE );
+        $self->debug( '... fetching from beginning.', $LOW_NOISE );
     }
     else {
-        $self->debug( "... fetching from here.", $LOW_NOISE );
+        $self->debug( '... fetching from here.', $LOW_NOISE );
     }
 
     my $n = 0;
     if ( $self->fetch_strategy eq 'by_rev' ) {
-        $self->debug( "Fetching & writing export data by revs...", $LOW_NOISE );
+        $self->debug( 'Fetching & writing export data by revs...', $LOW_NOISE );
         $n = $self->import_ref_by_revs($fetch_from);
     }
     elsif ( $self->fetch_strategy eq 'by_page' ) {
-        $self->debug( "Fetching & writing export data by pages...", $LOW_NOISE );
+        $self->debug( 'Fetching & writing export data by pages...', $LOW_NOISE );
         $n = $self->import_ref_by_pages($fetch_from);
     }
     else {
@@ -1965,8 +2004,8 @@ sub import_ref {
     }
 
     if ( $fetch_from == 1 && $n == 0 ) {
-        $self->debug( 
-            "You appear to have cloned an empty MediaWiki.", $LOW_NOISE );
+        $self->debug(
+            'You appear to have cloned an empty MediaWiki.', $LOW_NOISE );
 
         # Something has to be done remote-helper side. If nothing is done,
         # an error is thrown saying that HEAD is referring to unknown
