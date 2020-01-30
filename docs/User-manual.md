@@ -106,7 +106,8 @@ Alternatively, you may let clone write the value to the `.git/config` file to ha
 
 ## Authentication
 
-Some wiki require login/password. You can specify a login and password using the `remote.origin.mwLogin` and `remote.origin.mwPassword` configuration variables. If you need to do that at clone time, the best way is
+Some wiki require login/password. You can specify a login and password using the `remote.origin.mwLogin` and `remote.origin.mwPassword` configuration variables. You should not use your real password but create a `bot password` that has restricted rights. To create a bot password, visit `Special:Botpasswords` in your wiki.
+If you need the authentication at clone time, the best way is
 
     git init new-repo
     chmod 600 .git/config # you're going to put a password there
