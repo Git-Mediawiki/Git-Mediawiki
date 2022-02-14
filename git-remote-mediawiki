@@ -104,7 +104,14 @@ if (!$fetch_strategy) {
 	$fetch_strategy = run_git('config --get mediawiki.fetchStrategy');
 }
 chomp($fetch_strategy);
-if (!$fetch_strategy) {
+
+# Force by_page if we are given a set of pages.
+#
+# This is especially needed on initial clones from large wikis since, if fetchStrategy is set to
+# by_rev, an array containing all revisions ids is created in mw_import_ref_by_revs.  On large wikis
+# (e.g. Wikipedia) this results in an OOM error.
+# See https://github.com/Git-Mediawiki/Git-Mediawiki/issues/71
+if (!$fetch_strategy || $#tracked_pages > -1 ) {
 	$fetch_strategy = 'by_page';
 }
 
