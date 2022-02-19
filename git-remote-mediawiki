@@ -681,13 +681,17 @@ sub fetch_mw_revisions_for_page {
 		prop => 'revisions',
 		rvprop => 'ids',
 		rvdir => 'newer',
-		rvstartid => $fetch_from,
 		rvlimit => 500,
 		pageids => $id,
 
 		# Let MediaWiki know that we support the latest API.
 		continue => '',
 	};
+
+	# Don't add the start if it is 1 since not all pages start at 1
+	if ($fetch_from != 1) {
+		$query->{rvstartid} = $fetch_from;
+	}
 
 	my $revnum = 0;
 	# Get 500 revisions at a time due to the mediawiki api limit
