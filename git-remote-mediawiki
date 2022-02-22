@@ -35,6 +35,10 @@ use constant DELETED_CONTENT => "[[Category:Deleted]]\n";
 # sent with this content instead.
 use constant EMPTY_CONTENT => "<!-- empty page -->\n";
 
+# It's not possible to create empty pages. New empty files in Git are
+# sent with this content instead.
+use constant SUPPRESSED_REVISION => "<!-- suppressed revision -->\n";
+
 # used to reflect file creation or deletion in diff.
 use constant NULL_SHA1 => '0000000000000000000000000000000000000000';
 
@@ -914,42 +918,45 @@ sub mw_import_revids {
 
 	my $n = 0;
 	my $n_actual = 0;
-	my $last_timestamp = 0; # Placeholder in case $rev->timestamp is undefined
+	my $maxRevs = 50;							# FIXME: Need to fetch max_revs per-repo in case they have a client
+                                # that can fetch more on a wiki
 
-	foreach my $pagerevid (@{$revision_ids}) {
-	        # Count page even if we skip it, since we display
+	while( scalar @$revision_ids > 0 ) {
+		my @pageRevIds = splice @$revision_ids, 0, $maxRevs;
+		# Count page even if we skip it, since we display
 		# $n/$total and $total includes skipped pages.
-		$n++;
+		$n += scalar @pageRevIds;
 
 		# fetch the content of the pages
+		my $revs = join( "|", @pageRevIds );
 		my $query = {
 			action => 'query',
 			prop => 'revisions',
 			rvprop => 'content|timestamp|comment|user|ids',
-			revids => $pagerevid,
+			revids => $revs
 		};
 
 		my $result = $mediawiki->api($query);
 
 		if (!$result) {
-			die "Failed to retrieve modified page for revision $pagerevid\n";
-		}
-
-		if (defined($result->{query}->{badrevids}->{$pagerevid})) {
-			# The revision id does not exist on the remote wiki.
-			next;
-		}
-
-		if (!defined($result->{query}->{pages})) {
-			die "Invalid revision ${pagerevid}.\n";
+			die "Failed to retrieve modified page for revision(s) $revs\n";
 		}
 
 		my @result_pages = values(%{$result->{query}->{pages}});
-		my $result_page = $result_pages[0];
-		my $rev = $result_pages[0]->{revisions}->[0];
+		for my $result_page (@result_pages) {
+			$n_actual = handle_result_page( $n, $n_actual, $fetch_from, $result_page, $pages, $revision_ids );
+		}
+	}
 
-		my $page_title = $result_page->{title};
+	return $n_actual;
+}
 
+sub handle_result_page {
+	my ($n, $n_actual, $fetch_from, $result_page, $pages, $revision_ids) = @_;
+	my $page_title = $result_page->{title};
+	my $last_timestamp = 0;				# Placeholder in case $rev->timestamp is undefined
+
+	for my $rev (@{$result_page->{revisions}}) {
 		if (!exists($pages->{$page_title})) {
 			print {*STDERR} "${n}/", scalar(@{$revision_ids}),
 				": Skipping revision #$rev->{revid} of ${page_title}\n";
@@ -963,7 +970,13 @@ sub mw_import_revids {
 		$commit{comment} = $rev->{comment} || EMPTY_MESSAGE;
 		$commit{title} = smudge_filename($page_title);
 		$commit{mw_revision} = $rev->{revid};
-		$commit{content} = mediawiki_smudge($rev->{'*'});
+		if ( defined $rev->{'*'} ) {
+			$commit{content} = mediawiki_smudge($rev->{'*'});
+		} else {
+			# This may not be the best thing to do with suppressed revisions -- it creates a huge
+			# difference between three revisions (e.g. 100000 chars -> ~30 chars -> 100000 chars).
+			$commit{content} = SUPPRESSED_REVISION;
+		}
 
 		if (!defined($rev->{timestamp})) {
 			$last_timestamp++;
