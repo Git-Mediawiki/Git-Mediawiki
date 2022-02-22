@@ -8,11 +8,13 @@
 #
 ## Test git-remote-mediawiki
 
+include test.config
+
 all: test
 
 T = $(wildcard t[0-9][0-9][0-9][0-9]-*.sh)
 
-.PHONY: help test clean all
+.PHONY: help test clean all install-wiki
 
 help:
 	@echo 'Run "$(MAKE) test" to launch test scripts'

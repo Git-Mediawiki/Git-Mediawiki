@@ -22,7 +22,7 @@ export TEST_OUTPUT_DIRECTORY CURR_DIR
 if test "$LIGHTTPD" = "false" ; then
 	PORT=80
 else
-	WIKI_DIR_INST="$CURR_DIR/$WEB_WWW"
+	WIKI_DIR_INST="$WEB_WWW"
 fi
 
 wiki_upload_file () {
@@ -60,7 +60,7 @@ test_check_precond () {
 
 	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
 	then
-		skip_all='skipping gateway git-mw tests, no mediawiki found'
+		skip_all="skipping gateway git-mw tests, no mediawiki found: $WIKI_DIR_INST/$WIKI_DIR_NAME"
 		test_done
 	fi
 }
@@ -348,25 +348,25 @@ stop_lighttpd () {
 
 # Create the SQLite database of the MediaWiki. If the database file already
 # exists, it will be deleted.
-# This script should be runned from the directory where $FILES_FOLDER is
+# This script should be run from the directory where $FILES_FOLDER is
 # located.
 create_db () {
-	rm -f "$TMP/$DB_FILE"
+	rm -f "$DB_PRISTINE/*"
 
 	echo "Generating the SQLite database file. It can take some time ..."
 	# Run the php script to generate the SQLite database file
 	# with cURL calls.
 	php "$FILES_FOLDER/$DB_INSTALL_SCRIPT" $(basename "$DB_FILE" .sqlite) \
-		"$WIKI_ADMIN" "$WIKI_PASSW" "$TMP" "$PORT"
+		"$WIKI_ADMIN" "$WIKI_PASSW" "$DB_PRISTINE" "$PORT"
 
-	if [ ! -f "$TMP/$DB_FILE" ] ; then
-		error "Can't create database file $TMP/$DB_FILE. Try to run ./install-wiki.sh delete first."
+	if [ ! -f "$DB_PRISTINE/$DB_FILE" ] ; then
+		error "Can't create database file $DB_PRISTINE/$DB_FILE. Try to run ./install-wiki.sh delete first."
 	fi
 
 	# Copy the generated database file into the directory the
 	# user indicated.
-	cp "$TMP/$DB_FILE" "$FILES_FOLDER" ||
-		error "Unable to copy $TMP/$DB_FILE to $FILES_FOLDER"
+	cp "$DB_PRISTINE/$DB_FILE" "$FILES_FOLDER" ||
+		error "Unable to copy $DB_PRISTINE/$DB_FILE to $FILES_FOLDER"
 }
 
 # Install a wiki in your web server directory.
@@ -376,7 +376,7 @@ wiki_install () {
 	fi
 
 	SERVER_ADDR=$SERVER_ADDR:$PORT
-	# In this part, we change directory to $TMP in order to download,
+	# In this part, we change directory to $DB_PRISTINE in order to download,
 	# unpack and copy the files of MediaWiki
 	(
 	mkdir -p "$WIKI_DIR_INST/$WIKI_DIR_NAME"
@@ -387,7 +387,7 @@ wiki_install () {
 
 	# Fetch MediaWiki's archive if not already present in the TMP directory
 	MW_FILENAME="mediawiki-$MW_VERSION_MAJOR.$MW_VERSION_MINOR.tar.gz"
-	cd "$TMP"
+	cd "$DB_PRISTINE"
 	if [ ! -f $MW_FILENAME ] ; then
 		echo "Downloading $MW_VERSION_MAJOR.$MW_VERSION_MINOR sources ..."
 		wget "http://download.wikimedia.org/mediawiki/$MW_VERSION_MAJOR/$MW_FILENAME" ||
@@ -401,8 +401,8 @@ wiki_install () {
 		echo "Reusing existing $MW_FILENAME downloaded in $(pwd)."
 	fi
 	archive_abs_path=$(pwd)/$MW_FILENAME
-	cd "$WIKI_DIR_INST/$WIKI_DIR_NAME/" ||
-		error "can't cd to $WIKI_DIR_INST/$WIKI_DIR_NAME/"
+	cd "$WIKI_DIR_INST/$WIKI_DIR_NAME" ||
+		error "can't cd to $WIKI_DIR_INST/$WIKI_DIR_NAME"
 	tar xzf "$archive_abs_path" --strip-components=1 ||
 		error "Unable to extract WikiMedia's files from $archive_abs_path to "\
 			"$WIKI_DIR_INST/$WIKI_DIR_NAME"
@@ -433,7 +433,7 @@ wiki_install () {
 	sed "s,@WG_SERVER@,http://$SERVER_ADDR," \
 		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
 	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
-	sed "s,@WG_SQLITE_DATADIR@,$TMP," \
+	sed "s,@WG_SQLITE_DATADIR@,$DB_PRISTINE," \
 		"$FILES_FOLDER/LocalSettings-tmp.php" > "$file_swap"
 	mv "$file_swap" "$FILES_FOLDER/LocalSettings-tmp.php"
 	sed "s,@WG_SQLITE_DATAFILE@,$( basename $DB_FILE .sqlite)," \
@@ -452,16 +452,11 @@ wiki_install () {
 }
 
 # Reset the database of the wiki and the password of the admin
-#
-# Warning: This function must be called only in a subdirectory of t/ directory
 wiki_reset () {
 	# Copy initial database of the wiki
-	if [ ! -f "../$FILES_FOLDER/$DB_FILE" ] ; then
-		error "Can't find ../$FILES_FOLDER/$DB_FILE in the current folder."
-	fi
-	cp "../$FILES_FOLDER/$DB_FILE" "$TMP" ||
-		error "Can't copy ../$FILES_FOLDER/$DB_FILE in $TMP"
-	echo "File $FILES_FOLDER/$DB_FILE is set in $TMP"
+	( tar -C "$DB_PRISTINE" -c . | tar -C "$FILES_FOLDER" -x ) ||
+		error "Can't copy from $DB_PRISTINE to $FILES_FOLDER"
+	echo "File $FILES_FOLDER/$DB_FILE is set."
 }
 
 # Delete the wiki created in the web server's directory and all its content
@@ -476,12 +471,13 @@ wiki_delete () {
 			error "Wiki's directory $WIKI_DIR_INST/" \
 			"$WIKI_DIR_NAME could not be deleted"
 		# Delete the wiki's SQLite database.
-		rm -f "$TMP/$DB_FILE" ||
-			error "Database $TMP/$DB_FILE could not be deleted."
+		rm -f "$DB_PRISTINE/$DB_FILE" ||
+			error "Database $DB_PRISTINE/$DB_FILE could not be deleted."
 	fi
 
 	# Delete the wiki's SQLite database
-	rm -f "$TMP/$DB_FILE" || error "Database $TMP/$DB_FILE could not be deleted."
+	rm -f "$DB_PRISTINE/$DB_FILE" ||
+		error "Database $DB_PRISTINE/$DB_FILE could not be deleted."
 	rm -f "$FILES_FOLDER/$DB_FILE"
-	rm -rf "$TMP/mediawiki-$MW_VERSION_MAJOR.$MW_VERSION_MINOR.tar.gz"
+	rm -rf "$DB_PRISTINE/mediawiki-$MW_VERSION_MAJOR.$MW_VERSION_MINOR.tar.gz"
 }

@@ -24,7 +24,6 @@
 
 use MediaWiki::API;
 use Getopt::Long;
-use encoding 'utf8';
 use DateTime::Format::ISO8601;
 use open ':encoding(utf8)';
 use constant SLASH_REPLACEMENT => "%2F";
@@ -43,9 +42,8 @@ while (<$CONFIG>)
 	next unless length;
 	my ($key, $value) = split (/\s*=\s*/,$_, 2);
 	$config{$key} = $value;
-	last if ($key eq 'LIGHTTPD' and $value eq 'false');
-	last if ($key eq 'PORT');
 }
+
 close $CONFIG or die "can't close $configfile: $!";
 
 my $wiki_address = "http://$config{'SERVER_ADDR'}".":"."$config{'PORT'}";
@@ -61,7 +59,8 @@ $mw->{config}->{api_url} = $wiki_url;
 # Logs the user with <name> and <password> in the global variable
 # of the mediawiki $mw
 sub wiki_login {
-	$mw->login( { lgname => "$_[0]",lgpassword => "$_[1]" } )
+	my ($user, $pass) = @_;
+	$mw->login( { lgname => $user,lgpassword => $pass } )
 	|| die "getpage: login failed";
 }
 
