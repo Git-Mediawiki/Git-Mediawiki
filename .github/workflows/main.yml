@@ -78,6 +78,7 @@ jobs:
           path: ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
 
   test:
+    needs: build
     runs-on: ubuntu-latest
 
     strategy:
