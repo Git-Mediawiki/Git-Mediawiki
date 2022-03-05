@@ -116,4 +116,4 @@ jobs:
         run: |
           tar -C ${{ env.MW_DB_PATH }} -xvf ${{ matrix.mediawiki_version }}/db.tar
           cp ${{ matrix.mediawiki_version }}/LocalSettings.php ${{ env.MW_INSTALL_PATH }}/
-          ps aux
+          ls -l /
