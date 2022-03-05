@@ -67,6 +67,8 @@ jobs:
           test WikiSysop
 
       - uses: actions/upload-artifact@v3
-        path: |
-          ${{ env.MW_DB_PATH }}
-          ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
+        with:
+          name: runtime
+          path: |
+            ${{ env.MW_DB_PATH }}
+            ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
