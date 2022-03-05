@@ -25,7 +25,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
       matrix:
@@ -66,9 +65,61 @@ jobs:
           --dbpath=${{ env.MW_DB_PATH }}
           test WikiSysop
 
-      - uses: actions/upload-artifact@v3
+      - name: Save db
+        uses: actions/upload-artifact@v3
         with:
-          name: runtime
-          path: |
-            ${{ env.MW_DB_PATH }}
-            ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
+          name: runtime-${{ matrix.mediawiki_version }}-db
+          path: ${{ env.MW_DB_PATH }}
+
+      - name: Save LocalSettings
+        uses: actions/upload-artifact@v3
+        with:
+          name: runtime-${{ matrix.mediawiki_version }}-ls
+          path: ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
+
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - mediawiki_version: 1.35
+            database_type: sqlite
+            experimental: false
+          - mediawiki_version: 1.36
+            database_type: sqlite
+            experimental: true
+          - mediawiki_version: 1.37
+            database_type: sqlite
+            experimental: true
+
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v2
+        with:
+          path: ${{ env.PROJECT_NAME }}
+          submodules: true
+
+      - name: Display structure of no DB
+        run: ls -Rl $${{ env.MW_DB_PATH}} || true
+
+      - name: Load db
+        uses: actions/download-artifact@v3
+        with:
+          name: runtime-${{ matrix.mediawiki_version }}
+          path: ${{ env.MW_DB_PATH }}
+
+      - name: Display structure of DB
+        run: ls -Rl $${{ env.MW_DB_PATH}}
+
+      - name: Display structure of not downloaded files
+        run: ls -ld $${{ env.MW_INSTALL_PATH}}/LocalSettings.php || true
+
+      - name: Load LocalSettings
+        uses: actions/download-artifact@v3
+        with:
+          name: runtime-${{ matrix.mediawiki_version }}-ls
+          path: ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
+
+      - name: Display structure of downloaded files
+        run: ls -ld $${{ env.MW_INSTALL_PATH}}/LocalSettings.php
