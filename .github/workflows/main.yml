@@ -81,6 +81,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
+    container:
+      image: mediawiki:${{ matrix.mediawiki_version }}
+      ports:
+        - 80:80
+
     strategy:
       matrix:
         include:
@@ -109,8 +114,6 @@ jobs:
 
       - name: Deploy artifacts
         run: |
-          sudo mkdir ${{ env.MW_DB_PATH }}
-          sudo chmod 1777 ${{ env.MW_DB_PATH }}
           sudo tar -C ${{ env.MW_DB_PATH }} -xvf ${{ matrix.mediawiki_version }}/db.tar
           sudo cp ${{ matrix.mediawiki_version }}/LocalSettings.php ${{ env.MW_INSTALL_PATH }}/
           ls -l ${{ env.MW_DB_PATH }} ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
