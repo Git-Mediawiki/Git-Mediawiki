@@ -107,7 +107,7 @@ jobs:
       - name: Load db
         uses: actions/download-artifact@v3
         with:
-          name: runtime-${{ matrix.mediawiki_version }}
+          name: runtime-${{ matrix.mediawiki_version }}-db
           path: ${{ env.MW_DB_PATH }}
 
       - name: Display structure of DB
