@@ -65,17 +65,17 @@ jobs:
           --dbpath=${{ env.MW_DB_PATH }}
           test WikiSysop
 
-      - name: Save db
-        uses: actions/upload-artifact@v3
-        with:
-          name: runtime-${{ matrix.mediawiki_version }}-db
-          path: ${{ env.MW_DB_PATH }}
+      - name: Stage artifacts
+        run: |
+          mkdir -p ${{ matrix.mediawiki_version }}
+          tar -C ${{ env.MW_DB_PATH }} -cvf ${{ matrix.mediawiki_version }}/db.tar
+          cp ${{ env.MW_INSTALL_PATH }}/LocalSettings.php ${{ matrix.mediawiki_version }}/
 
-      - name: Save LocalSettings
+      - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: runtime-${{ matrix.mediawiki_version }}-ls
-          path: ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
+          name: runtime-${{ matrix.mediawiki_version }}
+          path: ${{ matrix.mediawiki_version }}
 
   test:
     needs: build
@@ -101,26 +101,15 @@ jobs:
           path: ${{ env.PROJECT_NAME }}
           submodules: true
 
-      - name: Display structure of no DB
-        run: ls -Rl $${{ env.MW_DB_PATH}} || true
-
-      - name: Load db
+      - name: Load artifacts
         uses: actions/download-artifact@v3
         with:
-          name: runtime-${{ matrix.mediawiki_version }}-db
-          path: ${{ env.MW_DB_PATH }}
+          name: runtime-${{ matrix.mediawiki_version }}
+          path: ${{ matrix.mediawiki_version }}
 
-      - name: Display structure of DB
-        run: ls -Rl $${{ env.MW_DB_PATH}}
-
-      - name: Display structure of not downloaded files
-        run: ls -ld $${{ env.MW_INSTALL_PATH}}/LocalSettings.php || true
-
-      - name: Load LocalSettings
-        uses: actions/download-artifact@v3
-        with:
-          name: runtime-${{ matrix.mediawiki_version }}-ls
-          path: ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
-
-      - name: Display structure of downloaded files
-        run: ls -ld $${{ env.MW_INSTALL_PATH}}/LocalSettings.php
+      - name: Deploy artifacts
+        run: |
+          mkdir -p ${{ env.MW_DB_PATH }}
+          tar -C ${{ env.MW_DB_PATH }} -xvf ${{ matrix.mediawiki_version }}/db.tar
+          cp ${{ matrix.mediawiki_version }}/LocalSettings.php ${{ env.MW_INSTALL_PATH }}/
+          ls -l ${{ env.MW_DB_PATH }} ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
