@@ -68,7 +68,7 @@ jobs:
       - name: Stage artifacts
         run: |
           mkdir -p ${{ matrix.mediawiki_version }}
-          tar -C ${{ env.MW_DB_PATH }} -cvf ${{ matrix.mediawiki_version }}/db.tar
+          tar -C ${{ env.MW_DB_PATH }} -cvf ${{ matrix.mediawiki_version }}/db.tar .
           cp ${{ env.MW_INSTALL_PATH }}/LocalSettings.php ${{ matrix.mediawiki_version }}/
 
       - name: Save artifacts
