@@ -114,6 +114,6 @@ jobs:
 
       - name: Deploy artifacts
         run: |
-          sudo tar -C ${{ env.MW_DB_PATH }} -xvf ${{ matrix.mediawiki_version }}/db.tar
-          sudo cp ${{ matrix.mediawiki_version }}/LocalSettings.php ${{ env.MW_INSTALL_PATH }}/
+          tar -C ${{ env.MW_DB_PATH }} -xvf ${{ matrix.mediawiki_version }}/db.tar
+          cp ${{ matrix.mediawiki_version }}/LocalSettings.php ${{ env.MW_INSTALL_PATH }}/
           ls -l ${{ env.MW_DB_PATH }} ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
