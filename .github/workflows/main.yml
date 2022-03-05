@@ -8,9 +8,23 @@ on:
     branches: [master]
   workflow_dispatch:
 
+env:
+  PROJECT_NAME: Git-Mediawiki
+  COMPOSER_VERSION: 2.1.14
+  MW_INSTALL_PATH: /var/www/html
+  MW_EXT_PATH: /var/www/html/extensions
+  DB_ROOT_USER: root
+  DB_ROOT_PWD: database
+  MW_DB_PATH: /var/www/data
+  MW_DB_USER: wiki
+  MW_DB_PWD: wiki
+  MW_DB_NAME: wiki
+  DB_PRISTINE: /var/www/pristine.tgz
+  SERVER_NAME: localhost
+
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
 
     strategy:
@@ -27,61 +41,20 @@ jobs:
             experimental: true
 
     env:
-      PROJECT_NAME: Git-Mediawiki
-      COMPOSER_VERSION: 2.1.14
-      MW_INSTALL_PATH: /var/www/html
-      MW_EXT_PATH: /var/www/html/extensions
-      DB_ROOT_USER: root
-      DB_ROOT_PWD: database
       MW_DB_TYPE: ${{ matrix.database_type }}
       MW_DB_SERVER: ${{ matrix.database_type }}
-      MW_DB_PATH: /var/www/data
-      MW_DB_USER: wiki
-      MW_DB_PWD: wiki
-      MW_DB_NAME: wiki
-      DB_PRISTINE: /var/www/pristine
-      SERVER_NAME: localhost
 
     container:
       image: mediawiki:${{ matrix.mediawiki_version }}
       ports:
         - 80:80
 
-    services:
-      some-mysql:
-        image: mariadb:latest
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ env.DB_ROOT_PWD }}
-
     steps:
-      # https://getcomposer.org/download/
-      - name: Get Composer and MediaWiki::API
-        run: |
-          apt update
-          apt install -t stable -y unzip libmediawiki-api-perl \
-              libdatetime-format-iso8601-perl
-          php -r "copy('https://getcomposer.org/installer', 'installer');"
-          php -r "copy('https://composer.github.io/installer.sig', 'expected');"
-          echo `cat expected` " installer" | sha384sum -c -
-          php installer --version=${{ env.COMPOSER_VERSION }}
-          rm -f installer expected
-          mv composer.phar /usr/local/bin/composer
-
-      - name: Checkout Project
-        uses: actions/checkout@v2
-        with:
-          path: ${{ env.PROJECT_NAME }}
-          submodules: true
-
-      - name: MediaWiki Composer Update
-        run: |
-          composer update --working-dir ${{ env.MW_INSTALL_PATH }}
-
       - name: MediaWiki Install
         run: >
           php ${{ env.MW_INSTALL_PATH }}/maintenance/install.php
           --pass=Password123456
-          --server="http://${{ env.SERVER_NAME}}:80"
+          --server="http://${{ env.SERVER_NAME}}"
           --scriptpath=""
           --dbtype=${{ env.MW_DB_TYPE }}
           --dbserver=${{ env.MW_DB_SERVER }}
@@ -93,14 +66,7 @@ jobs:
           --dbpath=${{ env.MW_DB_PATH }}
           test WikiSysop
 
-      - name: Pristine DB
-        run: >
-          mkdir -p ${{ env.DB_PRISTINE }} &&
-          cp -r ${{ env.MW_DB_PATH }}/* ${{ env.DB_PRISTINE }}
-
-      - name: Run Tests         # https://stackoverflow.com/a/50055449
-        run: >
-          timeout 80 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do
-          sleep 1; done' ${{ env.SERVER_NAME }} 80 &&
-          curl http://${{ env.SERVER_NAME}}:80/api.php &&
-          make -C ${{ env.PROJECT_NAME }}/t test
+      - uses: actions/upload-artifact@v3
+        path: |
+          ${{ env.MW_DB_PATH }}
+          ${{ env.MW_INSTALL_PATH }}/LocalSettings.php
