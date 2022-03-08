@@ -1,26 +1,27 @@
 package Git::Mediawiki;
 
 use 5.008;
-use strict;
+
 use POSIX;
 use Git;
 
+use strict;
+use warnings;
+
 BEGIN {
 
-our ($VERSION, @ISA, @EXPORT, @EXPORT_OK);
+	our ($VERSION, @ISA, @EXPORT, @EXPORT_OK);
 
-# Totally unstable API.
-$VERSION = '0.01';
+	# Totally unstable API.
+	$VERSION = '0.01';
 
-require Exporter;
+	require Exporter;
 
-@ISA = qw(Exporter);
+	@ISA = qw(Exporter);
 
-@EXPORT = ();
-
-# Methods which can be called as standalone functions as well:
-@EXPORT_OK = qw(clean_filename smudge_filename connect_maybe
-				EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
+	# Methods which can be called as standalone functions as well:
+	@EXPORT_OK = qw(clean_filename smudge_filename connect_maybe
+									EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
 }
 
 # Mediawiki filenames can contain forward slashes. This variable decides by which pattern they should be replaced
@@ -84,8 +85,8 @@ sub connect_maybe {
 		);
 		Git::credential(\%credential);
 		my $request = {lgname => $credential{username},
-			       lgpassword => $credential{password},
-			       lgdomain => $wiki_domain};
+										lgpassword => $credential{password},
+										lgdomain => $wiki_domain};
 		if ($wiki->login($request)) {
 			Git::credential(\%credential, 'approve');
 			print {*STDERR} qq(Logged in mediawiki user "$credential{username}".\n);
@@ -102,4 +103,4 @@ sub connect_maybe {
 	return $wiki;
 }
 
-1; # Famous last words
+1;															# Famous last words

@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB}));
-
 # Copyright (C) 2013
 #     Benoit Person <benoit.person@ensimag.imag.fr>
 #     Celestin Matte <celestin.matte@ensimag.imag.fr>
@@ -12,6 +10,7 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 
 use strict;
 use warnings;
+use lib (split(/:/, $ENV{GITPERLLIB} || ''));
 
 use Getopt::Long;
 use URI::URL qw(url);
@@ -20,8 +19,7 @@ use HTML::TreeBuilder;
 
 use Git;
 use MediaWiki::API;
-use Git::Mediawiki qw(clean_filename connect_maybe
-					EMPTY HTTP_CODE_PAGE_NOT_FOUND);
+use Git::Mediawiki qw(clean_filename connect_maybe EMPTY HTTP_CODE_PAGE_NOT_FOUND);
 
 # By default, use UTF-8 to communicate with Git and the user
 binmode STDERR, ':encoding(UTF-8)';
@@ -48,14 +46,14 @@ sub file {
 
 my %commands = (
 	'help' =>
-		[\&help, {}, \&help],
+	[\&help, {}, \&help],
 	'preview' =>
-		[\&preview, {
-			'<>' => \&file,
-			'output|o=s' => \$preview_file_name,
-			'remote|r=s' => \$remote_name,
-			'autoload|a' => \$autoload
-		}, \&preview_help]
+	[\&preview, {
+		'<>' => \&file,
+		'output|o=s' => \$preview_file_name,
+		'remote|r=s' => \$remote_name,
+		'autoload|a' => \$autoload
+	}, \&preview_help]
 );
 
 # Search for sub-command
@@ -68,8 +66,8 @@ for (0..@ARGV-1) {
 	}
 };
 GetOptions( %{$cmd->[1]},
-	'help|h' => \&{$cmd->[2]},
-	'verbose|v'  => \$verbose);
+						'help|h' => \&{$cmd->[2]},
+						'verbose|v'  => \$verbose);
 
 # Launch command
 &{$cmd->[0]};
