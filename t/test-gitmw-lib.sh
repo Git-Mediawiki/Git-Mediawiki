@@ -55,13 +55,16 @@ die_with_status () {
 
 # Check the preconditions to run git-remote-mediawiki's tests
 test_check_precond () {
-	GIT_EXEC_PATH=$(cd "$(dirname "$0")" && cd "../.." && pwd)
-	PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
+	# If CI is true, assume we're running under github CI
+	if [ "$CI" != "true" ]; then
+		GIT_EXEC_PATH=$(cd "$(dirname "$0")" && cd "../.." && pwd)
+		PATH="$GIT_EXEC_PATH"'/bin-wrapper:'"$PATH"
 
-	if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
-	then
-		skip_all='skipping gateway git-mw tests, no mediawiki found'
-		test_done
+		if [ ! -d "$WIKI_DIR_INST/$WIKI_DIR_NAME" ];
+		then
+			skip_all='skipping gateway git-mw tests, no mediawiki found'
+			test_done
+		fi
 	fi
 }
 
@@ -117,7 +120,7 @@ test_path_is_missing () {
 test_i18ngrep () {
 	if test -n "$GETTEXT_POISON"
 	then
-	    : # pretend success
+		: # pretend success
 	elif test "x!" = "x$1"
 	then
 		shift

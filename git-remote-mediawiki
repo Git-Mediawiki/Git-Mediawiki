@@ -1,7 +1,5 @@
 #! /usr/bin/perl
 
-use lib (split(/:/, $ENV{GITPERLLIB}));
-
 # Copyright (C) 2011
 #     Jérémie Nikaes <jeremie.nikaes@ensimag.imag.fr>
 #     Arnaud Lacurie <arnaud.lacurie@ensimag.imag.fr>
@@ -14,10 +12,12 @@ use lib (split(/:/, $ENV{GITPERLLIB}));
 # Documentation & bugtracker: https://github.com/moy/Git-Mediawiki/
 
 use strict;
+use warnings;
+use lib (split(/:/, $ENV{GITPERLLIB} || ""));
+
 use MediaWiki::API;
 use Git;
-use Git::Mediawiki qw(clean_filename smudge_filename connect_maybe
-					EMPTY HTTP_CODE_OK);
+use Git::Mediawiki qw(clean_filename smudge_filename connect_maybe EMPTY HTTP_CODE_OK);
 use DateTime::Format::ISO8601;
 use warnings;
 
@@ -167,12 +167,12 @@ while (<STDIN>) {
 ## error handling
 sub exit_error_usage {
 	die "ERROR: git-remote-mediawiki module was not called with a correct number of\n" .
-	    "parameters\n" .
-	    "You may obtain this error because you attempted to run the git-remote-mediawiki\n" .
-            "module directly.\n" .
-	    "This module can be used the following way:\n" .
-	    "\tgit clone mediawiki://<address of a mediawiki>\n" .
-	    "Then, use git commit, push and pull as with every normal git repository.\n";
+		"parameters\n" .
+		"You may obtain this error because you attempted to run the git-remote-mediawiki\n" .
+		"module directly.\n" .
+		"This module can be used the following way:\n" .
+		"\tgit clone mediawiki://<address of a mediawiki>\n" .
+		"Then, use git commit, push and pull as with every normal git repository.\n";
 }
 
 sub parse_command {
@@ -183,22 +183,22 @@ sub parse_command {
 	}
 	if ($cmd[0] eq 'capabilities') {
 		die("Too many arguments for capabilities\n")
-		    if (defined($cmd[1]));
+			if (defined($cmd[1]));
 		mw_capabilities();
 	} elsif ($cmd[0] eq 'list') {
 		die("Too many arguments for list\n") if (defined($cmd[2]));
 		mw_list($cmd[1]);
 	} elsif ($cmd[0] eq 'import') {
 		die("Invalid argument for import\n")
-		    if ($cmd[1] eq EMPTY);
+			if ($cmd[1] eq EMPTY);
 		die("Too many arguments for import\n")
-		    if (defined($cmd[2]));
+			if (defined($cmd[2]));
 		mw_import($cmd[1]);
 	} elsif ($cmd[0] eq 'option') {
 		die("Invalid arguments for option\n")
-		    if ($cmd[1] eq EMPTY || $cmd[2] eq EMPTY);
+			if ($cmd[1] eq EMPTY || $cmd[2] eq EMPTY);
 		die("Too many arguments for option\n")
-		    if (defined($cmd[3]));
+			if (defined($cmd[3]));
 		mw_option($cmd[1],$cmd[2]);
 	} elsif ($cmd[0] eq 'push') {
 		mw_push($cmd[1]);
@@ -222,9 +222,8 @@ sub fatal_mw_error {
 	} else {
 		print STDERR "fatal: make sure '$url/api.php' is a valid page.\n";
 	}
-	print STDERR "fatal: (error " .
-	    $mediawiki->{error}->{code} . ': ' .
-	    $mediawiki->{error}->{details} . ")\n";
+	print STDERR "fatal: (error " . $mediawiki->{error}->{code} . ': ' .
+		$mediawiki->{error}->{details} . ")\n";
 	exit 1;
 }
 
@@ -275,29 +274,29 @@ sub get_mw_tracked_categories {
 }
 
 sub get_mw_tracked_namespaces {
-    my $pages = shift;
-    foreach my $local_namespace (sort @tracked_namespaces) {
-        my $namespace_id;
-        if ($local_namespace eq "(Main)") {
-            $namespace_id = 0;
-        } else {
-            $namespace_id = get_mw_namespace_id($local_namespace);
-        }
-        # virtual namespaces don't support allpages
-        next if !defined($namespace_id) || $namespace_id < 0;
-        my $mw_pages = $mediawiki->list( {
-            action => 'query',
-            list => 'allpages',
-            apnamespace => $namespace_id,
-            aplimit => 'max' } )
-            || die $mediawiki->{error}->{code} . ': '
-                . $mediawiki->{error}->{details} . "\n";
-        print {*STDERR} "$#{$mw_pages} found in namespace $local_namespace ($namespace_id)\n";
-        foreach my $page (@{$mw_pages}) {
-            $pages->{$page->{title}} = $page;
-        }
-    }
-    return;
+	my $pages = shift;
+	foreach my $local_namespace (sort @tracked_namespaces) {
+		my $namespace_id;
+		if ($local_namespace eq "(Main)") {
+			$namespace_id = 0;
+		} else {
+			$namespace_id = get_mw_namespace_id($local_namespace);
+		}
+		# virtual namespaces don't support allpages
+		next if !defined($namespace_id) || $namespace_id < 0;
+		my $mw_pages = $mediawiki->list( {
+			action => 'query',
+			list => 'allpages',
+			apnamespace => $namespace_id,
+			aplimit => 'max' } )
+			|| die $mediawiki->{error}->{code} . ': '
+			. $mediawiki->{error}->{details} . "\n";
+		print {*STDERR} "$#{$mw_pages} found in namespace $local_namespace ($namespace_id)\n";
+		foreach my $page (@{$mw_pages}) {
+			$pages->{$page->{title}} = $page;
+		}
+	}
+	return;
 }
 
 sub get_mw_all_pages {
@@ -383,12 +382,12 @@ sub get_mw_pages {
 }
 
 # usage: $out = run_git("command args");
-#        $out = run_git("command args", "raw"); # don't interpret output as UTF-8.
+#				 $out = run_git("command args", "raw"); # don't interpret output as UTF-8.
 sub run_git {
 	my $args = shift;
 	my $encoding = (shift || 'encoding(UTF-8)');
 	open(my $git, "-|:${encoding}", "git ${args}")
-	    or die "Unable to fork: $!\n";
+		or die "Unable to fork: $!\n";
 	my $res = do {
 		local $/ = undef;
 		<$git>
@@ -451,12 +450,12 @@ sub get_linked_mediafiles {
 			my @media_titles;
 			if (defined($page->{links})) {
 				my @link_titles
-				    = map { $_->{title} } @{$page->{links}};
+					= map { $_->{title} } @{$page->{links}};
 				push(@media_titles, @link_titles);
 			}
 			if (defined($page->{images})) {
 				my @image_titles
-				    = map { $_->{title} } @{$page->{images}};
+					= map { $_->{title} } @{$page->{images}};
 				push(@media_titles, @image_titles);
 			}
 			if (@media_titles) {
@@ -747,11 +746,11 @@ sub fetch_mw_revisions {
 }
 
 sub fe_escape_path {
-    my $path = shift;
-    $path =~ s/\\/\\\\/g;
-    $path =~ s/"/\\"/g;
-    $path =~ s/\n/\\n/g;
-    return qq("${path}");
+	my $path = shift;
+	$path =~ s/\\/\\\\/g;
+	$path =~ s/"/\\"/g;
+	$path =~ s/\n/\\n/g;
+	return qq("${path}");
 }
 
 sub import_file_revision {
@@ -782,11 +781,11 @@ sub import_file_revision {
 	}
 	if ($content ne DELETED_CONTENT) {
 		print {*STDOUT} 'M 644 inline ' .
-		    fe_escape_path("${title}.mw") . "\n";
+			fe_escape_path("${title}.mw") . "\n";
 		literal_data($content);
 		if (%mediafile) {
 			print {*STDOUT} 'M 644 inline '
-			    . fe_escape_path($mediafile{title}) . "\n";
+				. fe_escape_path($mediafile{title}) . "\n";
 			literal_data_raw($mediafile{content});
 		}
 		print {*STDOUT} "\n\n";
@@ -923,7 +922,7 @@ sub mw_import_revids {
 	my $n = 0;
 	my $n_actual = 0;
 	my $maxRevs = 50;							# FIXME: Need to fetch max_revs per-repo in case they have a client
-                                # that can fetch more on a wiki
+																# that can fetch more on a wiki
 
 	while( scalar @$revision_ids > 0 ) {
 		my @pageRevIds = splice @$revision_ids, 0, $maxRevs;
@@ -1141,23 +1140,23 @@ sub mw_push_file {
 			if ($mediawiki->{error}->{code} == 3) {
 				# edit conflicts, considered as non-fast-forward
 				print {*STDERR} 'Warning: Error ' .
-				    $mediawiki->{error}->{code} .
-				    ' from mediawiki: ' . $mediawiki->{error}->{details} .
-				    ".\n";
+					$mediawiki->{error}->{code} .
+					' from mediawiki: ' . $mediawiki->{error}->{details} .
+					".\n";
 				return ($oldrevid, 'non-fast-forward');
 			} else {
 				# Other errors. Shouldn't happen => just die()
 				die 'Fatal: Error ' .
-				    $mediawiki->{error}->{code} .
-				    ' from mediawiki: ' . $mediawiki->{error}->{details} . "\n";
+					$mediawiki->{error}->{code} .
+					' from mediawiki: ' . $mediawiki->{error}->{details} . "\n";
 			}
 		}
 		$newrevid = $result->{edit}->{newrevid};
 		print {*STDERR} "Pushed file: ${new_sha1} - ${title}\n";
 	} elsif ($export_media) {
 		$newrevid = mw_upload_file($complete_file_name, $new_sha1,
-					   $extension, $page_deleted,
-					   $summary);
+															 $extension, $page_deleted,
+															 $summary);
 	} else {
 		print {*STDERR} "Ignoring media file ${title}\n";
 	}
@@ -1171,7 +1170,7 @@ sub mw_push {
 	my $pushed;
 	for my $refspec (@refsspecs) {
 		my ($force, $local, $remote) = $refspec =~ /^(\+)?([^:]*):([^:]*)$/
-		    or die("Invalid refspec for push. Expected <src>:<dst> or +<src>:<dst>\n");
+			or die("Invalid refspec for push. Expected <src>:<dst> or +<src>:<dst>\n");
 		if ($force) {
 			print {*STDERR} "Warning: forced push not allowed on a MediaWiki.\n";
 		}
@@ -1206,9 +1205,9 @@ sub mw_push {
 
 sub mw_push_revision {
 	my $local = shift;
-	my $remote = shift; # actually, this has to be "refs/heads/master" at this point.
+	my $remote = shift;						# actually, this has to be "refs/heads/master" at this point.
 	my $last_local_revid = get_last_local_revision();
-	print {*STDERR} ".\n"; # Finish sentence started by get_last_local_revision()
+	print {*STDERR} ".\n";				# Finish sentence started by get_last_local_revision()
 	my $last_remote_revid = get_last_remote_revision();
 	my $mw_revision = $last_remote_revid;
 
@@ -1219,8 +1218,7 @@ sub mw_push_revision {
 	my $remoteorigin_sha1 = run_git("rev-parse refs/remotes/${remotename}/master 2>/dev/null");
 	chomp($remoteorigin_sha1);
 
-	if ($last_local_revid > 0 &&
-	    $last_local_revid < $last_remote_revid) {
+	if ($last_local_revid > 0 && $last_local_revid < $last_remote_revid) {
 		return error_non_fast_forward($remote);
 	}
 
@@ -1317,7 +1315,7 @@ sub get_allowed_file_extensions {
 		action => 'query',
 		meta => 'siteinfo',
 		siprop => 'fileextensions'
-		};
+	};
 	my $result = $mediawiki->api($query);
 	my @file_extensions = map { $_->{ext}} @{$result->{query}->{fileextensions}};
 	my %hashFile = map { $_ => 1 } @file_extensions;
@@ -1343,7 +1341,7 @@ sub get_mw_namespace_id {
 		# already cached. Namespaces are stored in form:
 		# "Name_of_namespace:Id_namespace", ex.: "File:6".
 		my @temp = split(/\n/,
-				 run_git("config --get-all remote.${remotename}.namespaceCache"));
+										 run_git("config --get-all remote.${remotename}.namespaceCache"));
 		chomp(@temp);
 		foreach my $ns (@temp) {
 			my ($n, $id) = split(/:/, $ns);
@@ -1359,16 +1357,16 @@ sub get_mw_namespace_id {
 	if (!exists $namespace_id{$name}) {
 		print {*STDERR} "Namespace ${name} not found in cache, querying the wiki ...\n";
 		# NS not found => get namespace id from MW and store it in
-	        # configuration file.
-	        my $query = {
-	                action => 'query',
-	                meta => 'siteinfo',
-	                siprop => 'namespaces'
-	        };
-	        my $result = $mediawiki->api($query);
+		# configuration file.
+		my $query = {
+			action => 'query',
+			meta => 'siteinfo',
+			siprop => 'namespaces'
+		};
+		my $result = $mediawiki->api($query);
 
-	        while (my ($id, $ns) = each(%{$result->{query}->{namespaces}})) {
-	                if (defined($ns->{id}) && defined($ns->{canonical})) {
+		while (my ($id, $ns) = each(%{$result->{query}->{namespaces}})) {
+			if (defined($ns->{id}) && defined($ns->{canonical})) {
 				$namespace_id{$ns->{canonical}} = {is_namespace => 1, id => $ns->{id}};
 				if ($ns->{'*'}) {
 					# alias (e.g. french Fichier: as alias for canonical File:)
@@ -1382,7 +1380,11 @@ sub get_mw_namespace_id {
 	my $id;
 
 	if (!defined $ns) {
-		my @namespaces = map { s/ /_/g; $_; } sort keys %namespace_id;
+		my @namespaces;
+		for (sort keys %namespace_id) {
+			s/ /_/g;
+			push @namespaces, $_;
+		}
 		print {*STDERR} "No such namespace ${name} on MediaWiki, known namespaces: @namespaces\n";
 		$ns = {is_namespace => 0};
 		$namespace_id{$name} = $ns;

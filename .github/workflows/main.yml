@@ -1,0 +1,32 @@
+---
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  perlcritic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Perl critic
+        uses: Difegue/action-perlcritic@master
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          args: --stern ./Git/* ./t/*.pl ./git-*
+
+  editorconfig:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Editorconfig
+        uses: zbeekman/EditorConfig-Action@master
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
