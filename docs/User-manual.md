@@ -10,25 +10,13 @@ You need to have the following Perl packages installed:
 * __DateTime::Format::ISO8601__
 * __LWP::Protocol::https__ (for TLS access)
 
-
-#### Linux in general
-
-On many Linux distributions these can be installed from packages `libmediawiki-api-perl`,  `libdatetime-format-iso8601-perl`, and `perl-lwp-protocol-https` respectively.
-
 #### ArchLinux
 
 On ArchLinux the packages are named `perl-mediawiki-api perl-datetime-format-iso8601 perl-lwp-protocol-https` and are optional dependencies of `git`.
 
-#### Gentoo
+#### Debian
 
-For Gentoo-based Linux distributions, they can be installed by emerging `dev-perl/MediaWiki-API` and `dev-perl/DateTime-Format-ISO8601`.
-
-On OS X, they can be installed using the CPAN installation tool:
-
-```shell
-sudo cpan MediaWiki::API
-sudo cpan DateTime::Format::ISO8601
-```
+On Debian-based systems __LWP::Protocol::https__ is available as `liblwp-protocol-https-perl` package.
 
 #### FreeBSD
 
@@ -45,9 +33,20 @@ cd /usr/ports/devel/p5-MediaWiki-API
 make install
 ```
 
-#### Debian
+#### Gentoo
 
-On Debian-based systems __LWP::Protocol::https__ is available as `liblwp-protocol-https-perl` package.
+For Gentoo-based Linux distributions, they can be installed by emerging `dev-perl/MediaWiki-API` and `dev-perl/DateTime-Format-ISO8601`.
+
+On OS X, they can be installed using the CPAN installation tool:
+
+```shell
+sudo cpan MediaWiki::API
+sudo cpan DateTime::Format::ISO8601
+```
+
+#### Linux in general
+
+On many Linux distributions these can be installed from packages `libmediawiki-api-perl`,  `libdatetime-format-iso8601-perl`, and `perl-lwp-protocol-https` respectively.
 
 
 ### Git-Mediawiki
