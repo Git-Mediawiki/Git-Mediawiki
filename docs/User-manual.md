@@ -88,7 +88,7 @@ and/or select the content of MediaWiki Categories with:
 
     git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com
 
-By default, only the main namespace is inspected. But you can also specify other namespaces with the [following patchset](https://github.com/Git-Mediawiki/Git-Mediawiki/issues/10):
+By default, only the main namespace is inspected. But you can also specify other namespaces:
 
     git clone -c remote.origin.namespaces='(Main) Talk' mediawiki::http://yourwikiadress.com
 
