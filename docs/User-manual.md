@@ -60,6 +60,8 @@ Alternatively, you may install Git-Mediawiki manually:
 Then, the first operation you should do is cloning the remote mediawiki. To do so, run the command
 
     git clone mediawiki::http://yourwikiadress.com
+		
+*Note: Only the main namespace is fetched this way! How to expand the clone to more namespaces, *
 
 You can commit your changes locally as usual with the command
 
@@ -77,20 +79,28 @@ It is strongly recommanded to run `git pull --rebase` after each `git push`.
 
 Knowing those commands, you can now edit your wiki with your favorite text editor!
 
-## Partial import of a Wiki
+## Modify import scope
+
 ### Limit the pages to be imported
 
 If you don't want to clone the whole wiki, you can import only some pages with:
 
     git clone -c remote.origin.pages='A_page Another_page' mediawiki::http://yourwikiadress.com
-
+		
 and/or select the content of MediaWiki Categories with:
 
     git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com
 
-By default, only the main namespace is inspected. But you can also specify other namespaces:
+### Changing processed namespaces
 
-    git clone -c remote.origin.namespaces='(Main) Talk' mediawiki::http://yourwikiadress.com
+To extend the import to more than the `(Main)` namespace, you can specify a list of the namespaces to process:
+
+    git clone -c remote.origin.namespaces='(Main) Talk Template Template_talk' mediawiki::http://yourwikiadress.com
+		
+*Note: Namespaces are addressed with their cannonical name, spaces in the name need to be replaced with underscores.*
+
+You can get  all cannonical namespaces of a wiki as a list from the API,  by sending this request:
+    api.php?action=query&meta=siteinfo&siprop=namespaces&formatversion=2
 
 ### Shallow imports
 
@@ -101,6 +111,7 @@ It is also possible to import only the last revision of a wiki. This is done usi
  You can set this variable permanently by using the `-c` option behind the clone command. This will write the value to git's repository config. Any consecutive pull or fetch will skip the intermediary versions, and only fetch the latest version of the pages.
 
     git clone -c remote.origin.shallow=true mediawiki::http://example.com/wiki/
+
 
 ## Authentication
 
