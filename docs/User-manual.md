@@ -2,25 +2,28 @@
 
 You need to have Git installed on your machine. See the [help with setup for Windows](http://help.github.com/win-set-up-git/), [Mac](http://help.github.com/mac-set-up-git/) or [Linux](http://help.github.com/linux-set-up-git/).
 
+*Note: The Git project does not contain the latest version available in the master of this repository. See https://github.com/Git-Mediawiki/Git-Mediawiki/issues/82 on the matter.*
+
 ### Dependencies
 
 You need to have the following Perl packages installed:
 
 * __MediaWiki::API__ (recent version. Version 0.39 works. Version 0.34 won't work with mediafiles)
 * __DateTime::Format::ISO8601__
+* __LWP::Protocol::https__ (for TLS access)
 
-On many distributions of Linux, these can be installed from packages `libmediawiki-api-perl` and `libdatetime-format-iso8601-perl`, respectively.
+#### ArchLinux
 
-For Gentoo-based Linux distributions they can be installed by emerging `dev-perl/MediaWiki-API` and `dev-perl/DateTime-Format-ISO8601`.
+On ArchLinux the packages are named `perl-mediawiki-api perl-datetime-format-iso8601 perl-lwp-protocol-https` and are optional dependencies of `git`.
 
-On OS X, they can be installed using the CPAN installation tool:
+#### Debian
 
-```shell
-sudo cpan MediaWiki::API
-sudo cpan DateTime::Format::ISO8601
-```
+On Debian-based systems __LWP::Protocol::https__ is available as `liblwp-protocol-https-perl` package.
+
+#### FreeBSD
 
 On FreeBSD, both dependencies are available from ports or packages:
+
 ```shell
 # Through packages
 pkg install p5-MediaWiki-API p5-DateTime-Format-ISO8601
@@ -32,11 +35,21 @@ cd /usr/ports/devel/p5-MediaWiki-API
 make install
 ```
 
-To access HTTPS wikis, you may also need
+#### Gentoo
 
-* __LWP::Protocol::https__
+For Gentoo-based Linux distributions, they can be installed by emerging `dev-perl/MediaWiki-API` and `dev-perl/DateTime-Format-ISO8601`.
 
-On Linux, the package is called `perl-lwp-protocol-https`, or `liblwp-protocol-https-perl` on Debian-based systems.
+On OS X, they can be installed using the CPAN installation tool:
+
+```shell
+sudo cpan MediaWiki::API
+sudo cpan DateTime::Format::ISO8601
+```
+
+#### Linux in general
+
+On many Linux distributions these can be installed from packages `libmediawiki-api-perl`,  `libdatetime-format-iso8601-perl`, and `perl-lwp-protocol-https` respectively.
+
 
 ### Git-Mediawiki
 
@@ -60,6 +73,8 @@ Alternatively, you may install Git-Mediawiki manually:
 Then, the first operation you should do is cloning the remote mediawiki. To do so, run the command
 
     git clone mediawiki::http://yourwikiadress.com
+		
+*Note: Only the main namespace is fetched this way! How to expand the clone to more namespaces, *
 
 You can commit your changes locally as usual with the command
 
@@ -77,32 +92,39 @@ It is strongly recommanded to run `git pull --rebase` after each `git push`.
 
 Knowing those commands, you can now edit your wiki with your favorite text editor!
 
-## Partial import of a Wiki
+## Modify import scope
+
 ### Limit the pages to be imported
 
 If you don't want to clone the whole wiki, you can import only some pages with:
 
     git clone -c remote.origin.pages='A_page Another_page' mediawiki::http://yourwikiadress.com
-
+		
 and/or select the content of MediaWiki Categories with:
 
     git clone -c remote.origin.categories='First Second' mediawiki::http://yourwikiadress.com
 
-By default, only the main namespace is inspected. But you can also specify other namespaces with the [following patchset](https://github.com/Git-Mediawiki/Git-Mediawiki/issues/10):
+### Changing processed namespaces
 
-    git clone -c remote.origin.namespaces='(Main) Talk' mediawiki::http://yourwikiadress.com
+To extend the import to more than the `(Main)` namespace, you can specify a list of the namespaces to process:
+
+    git clone -c remote.origin.namespaces='(Main) Talk Template Template_talk' mediawiki::http://yourwikiadress.com
+		
+*Note: Namespaces are addressed with their cannonical name, spaces in the name need to be replaced with underscores.*
+
+You can get  all cannonical namespaces of a wiki as a list from the API,  by sending this request:
+    api.php?action=query&meta=siteinfo&siprop=namespaces&formatversion=2
 
 ### Shallow imports
 
-It is also possible to import only the last revision of a wiki. This is done using the `remote.origin.shallow` configuration variable. To set it during a clone, use:
+It is also possible to import only the last revision of a wiki. This is done using the `remote.origin.shallow` configuration variable. To apply the variable once during the clone, use:
 
     git -c remote.origin.shallow=true clone mediawiki::http://example.com/wiki/
 
-Alternatively, you may let clone write the value to the `.git/config` file to have further `git fetch` import only the last revision of each page too with
+ You can set this variable permanently by using the `-c` option behind the clone command. This will write the value to git's repository config. Any consecutive pull or fetch will skip the intermediary versions, and only fetch the latest version of the pages.
 
     git clone -c remote.origin.shallow=true mediawiki::http://example.com/wiki/
 
-(i.e. `-c` option used after `clone` in the command)
 
 ## Authentication
 
