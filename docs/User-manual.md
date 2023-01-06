@@ -94,15 +94,13 @@ By default, only the main namespace is inspected. But you can also specify other
 
 ### Shallow imports
 
-It is also possible to import only the last revision of a wiki. This is done using the `remote.origin.shallow` configuration variable. To set it during a clone, use:
+It is also possible to import only the last revision of a wiki. This is done using the `remote.origin.shallow` configuration variable. To apply the variable once during the clone, use:
 
     git -c remote.origin.shallow=true clone mediawiki::http://example.com/wiki/
 
-Alternatively, you may let clone write the value to the `.git/config` file to have further `git fetch` import only the last revision of each page too with
+ You can set this variable permanently by using the `-c` option behind the clone command. This will write the value to git's repository config. Any consecutive pull or fetch will skip the intermediary versions, and only fetch the latest version of the pages.
 
     git clone -c remote.origin.shallow=true mediawiki::http://example.com/wiki/
-
-(i.e. `-c` option used after `clone` in the command)
 
 ## Authentication
 
