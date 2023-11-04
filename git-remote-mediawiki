@@ -17,7 +17,7 @@ use lib (split(/:/, $ENV{GITPERLLIB} || ""));
 
 use MediaWiki::API;
 use Git;
-use Git::Mediawiki qw(clean_filename smudge_filename connect_maybe EMPTY HTTP_CODE_OK);
+use Git::Mediawiki qw(escape_author clean_filename smudge_filename connect_maybe EMPTY HTTP_CODE_OK);
 use DateTime::Format::ISO8601;
 use warnings;
 
@@ -969,7 +969,7 @@ sub handle_result_page {
 		$n_actual++;
 
 		my %commit;
-		$commit{author} = $rev->{user} || 'Anonymous';
+		$commit{author} = escape_author($rev->{user}) || 'Anonymous';
 		$commit{comment} = $rev->{comment} || EMPTY_MESSAGE;
 		$commit{title} = smudge_filename($page_title);
 		$commit{mw_revision} = $rev->{revid};
