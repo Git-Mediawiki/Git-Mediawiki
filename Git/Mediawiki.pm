@@ -20,7 +20,7 @@ BEGIN {
 	@ISA = qw(Exporter);
 
 	# Methods which can be called as standalone functions as well:
-	@EXPORT_OK = qw(clean_filename smudge_filename connect_maybe
+	@EXPORT_OK = qw(escape_author clean_filename smudge_filename connect_maybe
 									EMPTY HTTP_CODE_OK HTTP_CODE_PAGE_NOT_FOUND);
 }
 
@@ -33,6 +33,12 @@ use constant EMPTY => q{};
 # HTTP codes
 use constant HTTP_CODE_OK => 200;
 use constant HTTP_CODE_PAGE_NOT_FOUND => 404;
+
+sub escape_author {
+    my $string = shift;
+    $string =~ s/([<>@])/uri_escape($1)/ge;
+    return $string;
+}
 
 sub clean_filename {
 	my $filename = shift;
